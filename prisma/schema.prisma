@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id         String      @id @default(cuid())
+  name       String
+  createdAt  DateTime    @default(now())
+  users      User[]
+  channels   Channel[]
+  products   Product[]
+  warehouses Warehouse[]
+}
+
+model User {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+  email     String  @unique
+  name      String
+  role      Role    @default(OWNER)
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+model Channel {
+  id           String        @id @default(cuid())
+  accountId    String
+  account      Account       @relation(fields: [accountId], references: [id])
+  type         ChannelType
+  name         String
+  storeRef     String        // e.g. acme-goods.myshopify.com
+  credentials  String?       // encrypted JSON, filled next session
+  status       ChannelStatus @default(LIVE)
+  lastSyncedAt DateTime?
+  listings     Listing[]
+}
+
+enum ChannelType {
+  SHOPIFY
+  WOOCOMMERCE
+  AMAZON
+  ETSY
+  EBAY
+  WALMART
+}
+
+enum ChannelStatus {
+  LIVE
+  REVIEW
+  ERROR
+  PAUSED
+}
+
+model Warehouse {
+  id          String       @id @default(cuid())
+  accountId   String
+  account     Account      @relation(fields: [accountId], references: [id])
+  name        String
+  kind        String       // "Own", "3PL", "Store"
+  sortOrder   Int          @default(0)
+  stockLevels StockLevel[]
+}
+
+model Product {
+  id                String             @id @default(cuid())
+  accountId         String
+  account           Account            @relation(fields: [accountId], references: [id])
+  sku               String
+  name              String
+  barcode           String?
+  category          String?
+  swatch            String?            // hex for the colored product tile
+  isBundle          Boolean            @default(false)
+  costCents         Int                @default(0)
+  stockLevels       StockLevel[]
+  listings          Listing[]
+  bundleComponents  BundleComponent[]  @relation("bundle")
+  usedInBundles     BundleComponent[]  @relation("component")
+  movements         StockMovement[]
+
+  @@unique([accountId, sku])
+}
+
+model BundleComponent {
+  bundleId    String
+  componentId String
+  qty         Int
+  bundle      Product @relation("bundle", fields: [bundleId], references: [id])
+  component   Product @relation("component", fields: [componentId], references: [id])
+
+  @@id([bundleId, componentId])
+}
+
+model StockLevel {
+  productId   String
+  warehouseId String
+  onHand      Int       @default(0)
+  booked      Int       @default(0)
+  incoming    Int       @default(0)
+  closeAt     Int       @default(0)
+  minLevel    Int       @default(0)
+  stocked     Boolean   @default(true)
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@id([productId, warehouseId])
+}
+
+model Listing {
+  id             String   @id @default(cuid())
+  channelId      String
+  channel        Channel  @relation(fields: [channelId], references: [id])
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id])
+  externalId     String
+  title          String
+  isPrimary      Boolean  @default(false)
+  lastPushedQty  Int?
+  lastPushedAt   DateTime?
+  channelQty     Int?     // what the channel currently shows; differs = "changed outside app"
+
+  @@unique([channelId, externalId])
+}
+
+model StockMovement {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  warehouseId String
+  delta       Int
+  reason      MoveReason
+  refLabel    String?      // "Order #4821 · Shopify US"
+  note        String?
+  userId      String?
+  createdAt   DateTime     @default(now())
+
+  @@index([productId, createdAt])
+}
+
+enum MoveReason {
+  ORDER
+  CANCEL
+  RETURN
+  PO_RECEIVE
+  MANUAL
+  STOCKTAKE
+  TRANSFER
+}

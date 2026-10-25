@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0B0D12;
+  --color-ground: #F4F5F7;
+  --color-surface: #FFFFFF;
+  --color-line: #E4E7EC;
+  --color-hairline: #EEF0F3;
+  --color-muted: #5B6472;
+
+  --color-accent: #3155F5;
+  --color-accent-hover: #1E3BC4;
+  --color-accent-soft: #F3F6FF;
+  --color-accent-text: #2A44C9;
+
+  --color-sidebar-bg: #0B0D12;
+  --color-sidebar-raised: #151925;
+  --color-sidebar-active: #1B2030;
+  --color-sidebar-border: #232838;
+  --color-sidebar-text: #C9CED8;
+  --color-sidebar-dim: #9AA3B2;
+
+  --color-good: #12A150;
+  --color-good-text: #0F7A42;
+  --color-good-soft: #E7F6EE;
+
+  --color-warn: #F2A33A;
+  --color-warn-text: #A04D00;
+  --color-warn-soft: #FFF1E0;
+  --color-warn-border: #FBD9A8;
+
+  --color-bad: #D12E3A;
+  --color-bad-text: #B42330;
+  --color-bad-soft: #FDECEE;
+
+  --color-channel-shopify: #5E8E3E;
+  --color-channel-amazon: #232F3E;
+  --color-channel-etsy: #F1641E;
+  --color-channel-woocommerce: #7F54B3;
+  --color-channel-ebay: #0064D2;
+  --color-channel-walmart: #0071CE;
+
+  --font-heading: var(--font-inter-tight), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+  }
+
+  /* All numbers in tables and mono elements use tabular figures */
+  .tabular-nums,
+  table,
+  code,
+  kbd,
+  samp,
+  pre {
+    font-variant-numeric: tabular-nums;
+  }
+}
