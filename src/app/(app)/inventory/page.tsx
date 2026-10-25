@@ -26,6 +26,7 @@ export default async function InventoryPage({
   return (
     <InventoryClient
       items={data.items}
+      unlinkedListings={data.unlinkedListings}
       tabs={data.tabs}
       warehouses={data.warehouses}
       channels={data.channels}

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentAccountId } from "@/server/account";
-import { prisma } from "@/server/db";
 import { applyStockMovement, setStock } from "@/server/stock";
 import { StockError, InsufficientStockError } from "@/server/errors";
 import { MoveReason } from "@prisma/client";
@@ -57,14 +56,23 @@ export async function adjustStockAction(
       };
     }
 
+    if (input.mode !== "adjust" && input.mode !== "set") {
+      return {
+        ok: false,
+        code: "VALIDATION_ERROR",
+        message: "Mode must be 'adjust' or 'set'.",
+      };
+    }
+
     if (
       typeof input.quantity !== "number" ||
-      !Number.isInteger(input.quantity)
+      !Number.isInteger(input.quantity) ||
+      Math.abs(input.quantity) > 1_000_000
     ) {
       return {
         ok: false,
         code: "VALIDATION_ERROR",
-        message: "Quantity must be an integer.",
+        message: "Quantity must be an integer between -1,000,000 and 1,000,000.",
       };
     }
 
@@ -121,29 +129,11 @@ export async function adjustStockAction(
     return { ok: true };
   } catch (error) {
     if (error instanceof InsufficientStockError) {
-      try {
-        const currentLevel = await prisma.stockLevel.findUnique({
-          where: {
-            productId_warehouseId: {
-              productId: input.productId,
-              warehouseId: input.warehouseId,
-            },
-          },
-          select: { onHand: true },
-        });
-        const currentOnHand = currentLevel?.onHand ?? 0;
-        return {
-          ok: false,
-          code: "INSUFFICIENT_STOCK",
-          message: `Not enough stock: only ${currentOnHand} on hand`,
-        };
-      } catch {
-        return {
-          ok: false,
-          code: "INSUFFICIENT_STOCK",
-          message: "Not enough stock on hand to fulfill this removal.",
-        };
-      }
+      return {
+        ok: false,
+        code: "INSUFFICIENT_STOCK",
+        message: `Not enough stock: only ${error.onHand} on hand`,
+      };
     }
 
     if (error instanceof StockError) {
@@ -153,6 +143,8 @@ export async function adjustStockAction(
         message: error.message,
       };
     }
+
+    console.error("adjustStockAction unexpected error:", error);
 
     return {
       ok: false,

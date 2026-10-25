@@ -822,6 +822,28 @@ async function main() {
         channelQty: 35,
         lastPushedAt: new Date(Date.now() - 35 * 60 * 1000),
       },
+
+      // Unlinked listings on Etsy (productId: null)
+      {
+        channelId: etsyReview.id,
+        productId: null,
+        externalId: "ETSY-UNLINKED-01",
+        title: "Vintage Handmade Terracotta Planter 6in",
+        isPrimary: false,
+        lastPushedQty: null,
+        channelQty: 4,
+        lastPushedAt: null,
+      },
+      {
+        channelId: etsyReview.id,
+        productId: null,
+        externalId: "ETSY-UNLINKED-02",
+        title: "Woven Macrame Plant Hanger — Natural Cotton",
+        isPrimary: false,
+        lastPushedQty: null,
+        channelQty: 8,
+        lastPushedAt: null,
+      },
     ],
   });
 

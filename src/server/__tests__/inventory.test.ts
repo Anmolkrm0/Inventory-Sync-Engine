@@ -13,6 +13,7 @@ vi.mock("next/cache", () => ({
 describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
   let accountId: string;
   let warehouseId: string;
+  let warehouse2Id: string;
   let channelId: string;
   let productId: string;
 
@@ -44,6 +45,16 @@ describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
     });
     warehouseId = warehouse.id;
 
+    const warehouse2 = await prisma.warehouse.create({
+      data: {
+        accountId,
+        name: "3PL East",
+        kind: "3PL",
+        sortOrder: 2,
+      },
+    });
+    warehouse2Id = warehouse2.id;
+
     const channel = await prisma.channel.create({
       data: {
         accountId,
@@ -63,14 +74,24 @@ describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
         category: "Kitchen",
         swatch: "#2A44C9",
         stockLevels: {
-          create: {
-            warehouseId,
-            onHand: 20,
-            booked: 5,
-            closeAt: 2,
-            minLevel: 10,
-            stocked: true,
-          },
+          create: [
+            {
+              warehouseId,
+              onHand: 20,
+              booked: 5,
+              closeAt: 2,
+              minLevel: 10,
+              stocked: true,
+            },
+            {
+              warehouseId: warehouse2Id,
+              onHand: 10,
+              booked: 0,
+              closeAt: 5, // Differs from warehouse 1 -> Close at display should be 'Varies'!
+              minLevel: 5,
+              stocked: true,
+            },
+          ],
         },
         listings: {
           create: {
@@ -84,6 +105,35 @@ describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
       },
     });
     productId = product.id;
+
+    // Create 2 unlinked listings (productId: null) on Etsy
+    const etsyChannel = await prisma.channel.create({
+      data: {
+        accountId,
+        name: "Etsy",
+        type: ChannelType.ETSY,
+        storeRef: "etsy.com/shop/test",
+      },
+    });
+
+    await prisma.listing.createMany({
+      data: [
+        {
+          channelId: etsyChannel.id,
+          productId: null,
+          externalId: "ETSY-UNLINKED-01",
+          title: "Terracotta Planter 6in",
+          channelQty: 4,
+        },
+        {
+          channelId: etsyChannel.id,
+          productId: null,
+          externalId: "ETSY-UNLINKED-02",
+          title: "Woven Macrame Plant Hanger",
+          channelQty: 8,
+        },
+      ],
+    });
   });
 
   afterAll(async () => {
@@ -91,23 +141,52 @@ describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
     await pool.end();
   });
 
-  it("getInventoryData computes available, status, channels, and tabs correctly", async () => {
+  it("getInventoryData computes available, status, channels, tabs, and varies close-at correctly", async () => {
     const data = await getInventoryData();
 
     expect(data.items.length).toBe(1);
     const item = data.items[0];
     expect(item.sku).toBe("MUG-001");
-    expect(item.onHand).toBe(20);
+    expect(item.onHand).toBe(30); // 20 + 10
     expect(item.booked).toBe(5);
-    expect(item.available).toBe(15); // 20 - 5
+    expect(item.available).toBe(25); // 15 + 10
     expect(item.status).toBe("Healthy");
+    expect(item.closeAtDisplay).toBe("Varies"); // 2 != 5 -> 'Varies'
     expect(item.channels.length).toBe(1);
     expect(item.channels[0].name).toBe("Shopify US");
     expect(item.lastPush).toContain("m ago");
 
+    // Unlinked listings tab count is 2
     expect(data.tabs.all).toBe(1);
-    expect(data.tabs.low_stock).toBe(0);
-    expect(data.tabs.sold_out).toBe(0);
+    expect(data.tabs.unlinked).toBe(2);
+    expect(data.unlinkedListings.length).toBe(2);
+    expect(data.unlinkedListings[0].externalId).toBe("ETSY-UNLINKED-01");
+  });
+
+  it("warehouse filter hides products not stocked in that warehouse", async () => {
+    // Create an unstocked product in warehouse2
+    await prisma.product.create({
+      data: {
+        accountId,
+        sku: "PEN-002",
+        name: "Brass Pen",
+        stockLevels: {
+          create: {
+            warehouseId,
+            onHand: 15,
+            stocked: true,
+          },
+        },
+      },
+    });
+
+    const wh1Data = await getInventoryData({ warehouseId });
+    expect(wh1Data.items.map((i) => i.sku)).toEqual(["MUG-001", "PEN-002"]);
+
+    // In warehouse2, PEN-002 is not stocked so it must be hidden!
+    const wh2Data = await getInventoryData({ warehouseId: warehouse2Id });
+    expect(wh2Data.items.map((i) => i.sku)).toEqual(["MUG-001"]);
+    expect(wh2Data.items[0].closeAtDisplay).toBe("5");
   });
 
   it("filters by search query q across SKU, name, and barcode", async () => {
@@ -171,17 +250,44 @@ describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
     expect(updatedLevel.onHand).toBe(40);
   });
 
-  it("adjustStockAction returns friendly error when stock is insufficient", async () => {
+  it("adjustStockAction returns friendly error carrying onHand when stock is insufficient", async () => {
     const result = await adjustStockAction({
       productId,
       warehouseId,
       mode: "adjust",
-      quantity: -100, // On hand is only 20!
+      quantity: -100, // On hand in warehouse 1 is 20!
       reason: MoveReason.MANUAL,
     });
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("INSUFFICIENT_STOCK");
     expect(result.message).toBe("Not enough stock: only 20 on hand");
+  });
+
+  it("adjustStockAction validates mode and quantity limits", async () => {
+    // Invalid mode
+    const badMode = await adjustStockAction({
+      productId,
+      warehouseId,
+      // @ts-expect-error testing invalid mode
+      mode: "invalid_mode",
+      quantity: 5,
+      reason: MoveReason.MANUAL,
+    });
+    expect(badMode.ok).toBe(false);
+    expect(badMode.message).toBe("Mode must be 'adjust' or 'set'.");
+
+    // Quantity exceeding limit
+    const hugeQty = await adjustStockAction({
+      productId,
+      warehouseId,
+      mode: "adjust",
+      quantity: 2_000_000,
+      reason: MoveReason.MANUAL,
+    });
+    expect(hugeQty.ok).toBe(false);
+    expect(hugeQty.message).toBe(
+      "Quantity must be an integer between -1,000,000 and 1,000,000."
+    );
   });
 });

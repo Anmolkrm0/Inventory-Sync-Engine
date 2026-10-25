@@ -10,9 +10,18 @@ export class StockError extends Error {
 }
 
 export class InsufficientStockError extends StockError {
-  constructor(message = "Insufficient stock") {
+  onHand: number;
+  requested: number;
+
+  constructor(
+    onHand = 0,
+    requested = 0,
+    message = `Insufficient stock: only ${onHand} on hand, requested ${requested}`
+  ) {
     super(message, "INSUFFICIENT_STOCK");
     this.name = "InsufficientStockError";
+    this.onHand = onHand;
+    this.requested = requested;
   }
 }
 

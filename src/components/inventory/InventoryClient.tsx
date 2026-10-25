@@ -16,6 +16,7 @@ import { FloatingBulkActionBar } from "@/components/inventory/FloatingBulkAction
 import { AdjustStockDialog } from "@/components/inventory/AdjustStockDialog";
 import {
   InventoryItem,
+  UnlinkedListingItem,
   InventoryTabCounts,
   InventoryWarehouseOption,
   InventoryChannelOption,
@@ -25,6 +26,7 @@ import { Upload, ClipboardList, SlidersHorizontal } from "lucide-react";
 
 export interface InventoryClientProps {
   items: InventoryItem[];
+  unlinkedListings: UnlinkedListingItem[];
   tabs: InventoryTabCounts;
   warehouses: InventoryWarehouseOption[];
   channels: InventoryChannelOption[];
@@ -34,6 +36,7 @@ export interface InventoryClientProps {
 
 export function InventoryClient({
   items,
+  unlinkedListings,
   tabs,
   warehouses,
   channels,
@@ -79,6 +82,8 @@ export function InventoryClient({
     setDialogProductId(selectedIds[0] ?? undefined);
     setDialogOpen(true);
   };
+
+  const isUnlinkedView = currentView === "unlinked";
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -138,20 +143,24 @@ export function InventoryClient({
         {/* Search & Filter Bar */}
         <InventoryFilters warehouses={warehouses} channels={channels} />
 
-        {/* Stock Table */}
+        {/* Stock Table / Unlinked Listings Table */}
         <InventoryTable
           items={items}
+          unlinkedListings={unlinkedListings}
+          isUnlinkedView={isUnlinkedView}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
           onToggleSelectAll={handleToggleSelectAll}
         />
 
-        {/* Floating Bulk Action Bar */}
-        <FloatingBulkActionBar
-          selectedCount={selectedIds.length}
-          onAdjust={() => handleOpenAdjust()}
-          onClear={() => setSelectedIds([])}
-        />
+        {/* Floating Bulk Action Bar (only for standard items) */}
+        {!isUnlinkedView && (
+          <FloatingBulkActionBar
+            selectedCount={selectedIds.length}
+            onAdjust={() => handleOpenAdjust()}
+            onClear={() => setSelectedIds([])}
+          />
+        )}
 
         {/* Adjust Stock Modal Dialog */}
         <AdjustStockDialog

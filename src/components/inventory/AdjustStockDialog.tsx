@@ -83,11 +83,18 @@ export function AdjustStockDialog({
     e.preventDefault();
     setErrorMsg(null);
 
-    const parsedQty = parseInt(quantity, 10);
-    if (isNaN(parsedQty)) {
+    const num = Number(quantity);
+    if (!Number.isInteger(num)) {
       setErrorMsg("Please enter a valid whole number for quantity.");
       return;
     }
+
+    if (Math.abs(num) > 1_000_000) {
+      setErrorMsg("Quantity must be between -1,000,000 and 1,000,000.");
+      return;
+    }
+
+    const parsedQty = num;
 
     if (mode === "adjust" && parsedQty === 0) {
       setErrorMsg("Adjustment quantity must be non-zero (positive to add, negative to remove).");

@@ -83,6 +83,47 @@ export function statusFor(level: {
 }
 
 /**
+ * Aggregate status across multiple stocked warehouses:
+ * - totalAvailable = sum available
+ * - totalPush = sum pushQty
+ * - totalMin = sum minLevel
+ * - Sold out if totalAvailable == 0
+ * - Held at 0 if totalAvailable > 0 && totalPush == 0
+ * - Low stock if totalAvailable <= totalMin
+ * - else Healthy
+ */
+export function statusForLevels(
+  levels: Array<{
+    onHand: number;
+    booked: number;
+    closeAt: number;
+    minLevel: number;
+    stocked?: boolean;
+  }>
+): StockStatus {
+  const stockedLevels = levels.filter((l) => l.stocked !== false);
+  if (stockedLevels.length === 0) {
+    return "Sold out";
+  }
+
+  let totalAvailable = 0;
+  let totalPush = 0;
+  let totalMin = 0;
+
+  for (const lvl of stockedLevels) {
+    const avail = available(lvl);
+    totalAvailable += avail;
+    totalPush += pushQty(lvl);
+    totalMin += lvl.minLevel;
+  }
+
+  if (totalAvailable === 0) return "Sold out";
+  if (totalAvailable > 0 && totalPush === 0) return "Held at 0";
+  if (totalAvailable <= totalMin) return "Low stock";
+  return "Healthy";
+}
+
+/**
  * Sum of available (Math.max(0, onHand - booked)) over stocked warehouses only.
  * Filters by accountId. Does NOT subtract closeAt.
  */
@@ -181,7 +222,8 @@ async function lockAndAdjustStock(
     const newOnHand = currentLevel.onHand + delta;
     if (newOnHand < 0) {
       throw new InsufficientStockError(
-        `Insufficient stock: onHand (${currentLevel.onHand}) + delta (${delta}) = ${newOnHand} < 0`
+        currentLevel.onHand,
+        Math.abs(delta)
       );
     }
 

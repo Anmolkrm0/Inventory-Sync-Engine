@@ -2,11 +2,18 @@
 
 import React from "react";
 import Link from "next/link";
-import { InventoryItem } from "@/server/inventory";
+import { InventoryItem, UnlinkedListingItem } from "@/server/inventory";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusPill } from "@/components/shared/StatusPill";
 import { ChannelTile } from "@/components/shared/ChannelTile";
 import { Card } from "@/components/shared/Card";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Table,
   TableHeader,
@@ -15,10 +22,13 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
+import { Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface InventoryTableProps {
   items: InventoryItem[];
+  unlinkedListings?: UnlinkedListingItem[];
+  isUnlinkedView?: boolean;
   selectedIds: string[];
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
@@ -26,10 +36,122 @@ export interface InventoryTableProps {
 
 export function InventoryTable({
   items,
+  unlinkedListings = [],
+  isUnlinkedView = false,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
 }: InventoryTableProps) {
+  // If in Unlinked listings view, render unlinked channel listings
+  if (isUnlinkedView) {
+    if (unlinkedListings.length === 0) {
+      return (
+        <Card className="p-12 text-center">
+          <h3 className="text-base font-semibold text-ink font-heading">
+            No unlinked listings
+          </h3>
+          <p className="mt-1 text-xs text-muted">
+            All connected sales channel listings are successfully linked to master SKUs.
+          </p>
+        </Card>
+      );
+    }
+
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Card className="p-0 overflow-hidden border-line">
+          <div className="overflow-x-auto">
+            <Table className="w-full min-w-[750px]">
+              <TableHeader className="bg-ground/60 border-b border-line">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-40 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider pl-5">
+                    Channel
+                  </TableHead>
+                  <TableHead className="min-w-[280px] py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">
+                    Listing Title
+                  </TableHead>
+                  <TableHead className="w-40 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">
+                    External ID
+                  </TableHead>
+                  <TableHead className="w-28 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider text-right">
+                    Channel Qty
+                  </TableHead>
+                  <TableHead className="w-36 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">
+                    Status
+                  </TableHead>
+                  <TableHead className="w-28 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider text-right pr-5">
+                    Action
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody className="divide-y divide-hairline">
+                {unlinkedListings.map((listing) => (
+                  <TableRow key={listing.id} className="hover:bg-ground/40">
+                    <TableCell className="py-3 pl-5">
+                      <div className="flex items-center gap-2">
+                        <ChannelTile
+                          type={listing.channel.type}
+                          name={listing.channel.name}
+                          size="xs"
+                        />
+                        <span className="text-xs font-medium text-ink">
+                          {listing.channel.name}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="py-3">
+                      <span className="text-sm font-semibold text-ink">
+                        {listing.title}
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="py-3">
+                      <span className="font-mono text-xs text-muted bg-ground px-1.5 py-0.5 rounded-[4px] border border-line tracking-tight">
+                        {listing.externalId}
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-ink font-medium">
+                      {listing.channelQty ?? "—"}
+                    </TableCell>
+
+                    <TableCell className="py-3">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-warn-soft text-warn-text">
+                        Needs match
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="py-3 text-right pr-5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span tabIndex={0} className="inline-block">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              className="h-8 px-2.5 rounded-[8px] text-xs gap-1 text-muted opacity-60 cursor-not-allowed"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                              <span>Link SKU</span>
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">Coming soon</TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      </TooltipProvider>
+    );
+  }
+
+  // Standard Product Stock Table
   const isAllSelected =
     items.length > 0 && items.every((item) => selectedIds.includes(item.id));
   const isSomeSelected =
@@ -93,8 +215,8 @@ export function InventoryTable({
                 Incoming
               </TableHead>
 
-              {/* Close at */}
-              <TableHead className="w-20 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider text-right">
+              {/* Close at (shows value or 'Varies') */}
+              <TableHead className="w-24 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider text-right">
                 Close at
               </TableHead>
 
@@ -202,9 +324,9 @@ export function InventoryTable({
                     {item.incoming > 0 ? `+${item.incoming}` : "0"}
                   </TableCell>
 
-                  {/* Close at */}
+                  {/* Close at (shows value or 'Varies') */}
                   <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-muted">
-                    {item.closeAt}
+                    {item.closeAtDisplay}
                   </TableCell>
 
                   {/* Status Pill */}

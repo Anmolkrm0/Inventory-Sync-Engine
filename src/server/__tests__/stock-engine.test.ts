@@ -6,6 +6,7 @@ import {
   available,
   pushQty,
   statusFor,
+  statusForLevels,
   getAvailable,
 } from "@/server/stock";
 import { bundleAvailable } from "@/server/bundles";
@@ -588,5 +589,47 @@ describe("Stock Engine (Real PostgreSQL Test Database)", () => {
     });
     const foreignAvail = await getAvailable(foreignAccount.id, product.id);
     expect(foreignAvail).toBe(0);
+  });
+
+  describe("statusForLevels() aggregate calculation", () => {
+    it("returns 'Sold out' when totalAvailable is 0", () => {
+      const status = statusForLevels([
+        { onHand: 5, booked: 5, closeAt: 0, minLevel: 2, stocked: true },
+        { onHand: 0, booked: 0, closeAt: 0, minLevel: 2, stocked: true },
+      ]);
+      expect(status).toBe("Sold out");
+    });
+
+    it("returns 'Held at 0' when totalAvailable > 0 but totalPush is 0 (held by close-at)", () => {
+      const status = statusForLevels([
+        { onHand: 2, booked: 0, closeAt: 2, minLevel: 1, stocked: true }, // avail 2 <= closeAt 2 -> push 0
+        { onHand: 3, booked: 0, closeAt: 5, minLevel: 1, stocked: true }, // avail 3 <= closeAt 5 -> push 0
+      ]);
+      expect(status).toBe("Held at 0");
+    });
+
+    it("returns 'Low stock' when totalAvailable <= totalMin", () => {
+      const status = statusForLevels([
+        { onHand: 5, booked: 1, closeAt: 0, minLevel: 5, stocked: true }, // avail 4, min 5
+        { onHand: 4, booked: 0, closeAt: 0, minLevel: 5, stocked: true }, // avail 4, min 5
+      ]); // totalAvail = 8 <= totalMin = 10
+      expect(status).toBe("Low stock");
+    });
+
+    it("returns 'Healthy' when totalAvailable > totalMin and totalPush > 0", () => {
+      const status = statusForLevels([
+        { onHand: 20, booked: 2, closeAt: 0, minLevel: 5, stocked: true }, // avail 18
+        { onHand: 15, booked: 0, closeAt: 0, minLevel: 5, stocked: true }, // avail 15
+      ]); // totalAvail = 33 > totalMin = 10
+      expect(status).toBe("Healthy");
+    });
+
+    it("ignores unstocked warehouses (stocked: false)", () => {
+      const status = statusForLevels([
+        { onHand: 0, booked: 0, closeAt: 0, minLevel: 2, stocked: true },
+        { onHand: 100, booked: 0, closeAt: 0, minLevel: 0, stocked: false }, // Ignored!
+      ]);
+      expect(status).toBe("Sold out");
+    });
   });
 });

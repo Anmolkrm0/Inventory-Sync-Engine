@@ -3,6 +3,7 @@ import { getCurrentAccountId } from "@/server/account";
 import {
   available as computeAvailable,
   statusFor,
+  statusForLevels,
   type StockStatus,
 } from "@/server/stock";
 import { bundleAvailable } from "@/server/bundles";
@@ -28,9 +29,22 @@ export interface InventoryItem {
   available: number;
   incoming: number;
   closeAt: number;
+  closeAtDisplay: string;
   status: StockStatus;
   lastPush: string;
   lastPushedAt: Date | null;
+}
+
+export interface UnlinkedListingItem {
+  id: string;
+  externalId: string;
+  title: string;
+  channelQty: number | null;
+  channel: {
+    id: string;
+    name: string;
+    type: ChannelType;
+  };
 }
 
 export interface InventoryTabCounts {
@@ -68,6 +82,7 @@ export interface SelectableProductOption {
 
 export interface InventoryDataResult {
   items: InventoryItem[];
+  unlinkedListings: UnlinkedListingItem[];
   tabs: InventoryTabCounts;
   warehouses: InventoryWarehouseOption[];
   channels: InventoryChannelOption[];
@@ -100,33 +115,56 @@ export async function getInventoryData(
 ): Promise<InventoryDataResult> {
   const accountId = await getCurrentAccountId();
 
-  // 1. Fetch all warehouses and channels for this account
-  const [warehouses, channels, allProducts] = await Promise.all([
-    prisma.warehouse.findMany({
-      where: { accountId },
-      orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true, kind: true },
-    }),
-    prisma.channel.findMany({
-      where: { accountId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, type: true },
-    }),
-    prisma.product.findMany({
-      where: { accountId },
-      include: {
-        stockLevels: {
-          include: { warehouse: true },
+  // 1. Fetch warehouses, channels, products, and unlinked listings
+  const [warehouses, channels, allProducts, unlinkedListingsRaw] =
+    await Promise.all([
+      prisma.warehouse.findMany({
+        where: { accountId },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, name: true, kind: true },
+      }),
+      prisma.channel.findMany({
+        where: { accountId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, type: true },
+      }),
+      prisma.product.findMany({
+        where: { accountId },
+        include: {
+          stockLevels: {
+            include: { warehouse: true },
+          },
+          listings: {
+            include: { channel: true },
+          },
         },
-        listings: {
-          include: { channel: true },
+        orderBy: { sku: "asc" },
+      }),
+      prisma.listing.findMany({
+        where: {
+          channel: { accountId },
+          productId: null,
         },
-      },
-      orderBy: { sku: "asc" },
-    }),
-  ]);
+        include: { channel: true },
+        orderBy: { externalId: "asc" },
+      }),
+    ]);
 
-  // 2. Pre-calculate bundle availability for any bundle products
+  const unlinkedListings: UnlinkedListingItem[] = unlinkedListingsRaw.map(
+    (l) => ({
+      id: l.id,
+      externalId: l.externalId,
+      title: l.title,
+      channelQty: l.channelQty,
+      channel: {
+        id: l.channel.id,
+        name: l.channel.name,
+        type: l.channel.type,
+      },
+    })
+  );
+
+  // 2. Pre-calculate bundle availability for bundle products
   const bundleAvailMap = new Map<string, number>();
   for (const product of allProducts) {
     if (product.isBundle) {
@@ -135,9 +173,21 @@ export async function getInventoryData(
     }
   }
 
-  // 3. Transform all products into InventoryItem objects
-  const computedItems: InventoryItem[] = allProducts.map((product) => {
-    // Collect unique channels from listings
+  // 3. Filter products by warehouse if a warehouse filter is active
+  // Fix 6: "With a warehouse filter, hide products not stocked in that warehouse."
+  const targetProducts = params.warehouseId
+    ? allProducts.filter((p) => {
+        if (p.isBundle) return false; // bundles are not stored in warehouses directly
+        const lvl = p.stockLevels.find(
+          (sl) => sl.warehouseId === params.warehouseId
+        );
+        return lvl ? lvl.stocked === true : false;
+      })
+    : allProducts;
+
+  // 4. Transform eligible products into InventoryItem objects
+  const computedItems: InventoryItem[] = targetProducts.map((product) => {
+    // Unique channels from listings
     const uniqueChannelsMap = new Map<string, InventoryItemChannel>();
     for (const listing of product.listings) {
       if (!uniqueChannelsMap.has(listing.channel.id)) {
@@ -165,6 +215,7 @@ export async function getInventoryData(
     let available = 0;
     let incoming = 0;
     let closeAt = 0;
+    let closeAtDisplay = "0";
     let status: StockStatus = "Healthy";
 
     if (product.isBundle) {
@@ -173,6 +224,7 @@ export async function getInventoryData(
       booked = 0;
       incoming = 0;
       closeAt = 0;
+      closeAtDisplay = "0";
       if (available <= 0) {
         status = "Sold out";
       } else if (available <= 5) {
@@ -185,12 +237,13 @@ export async function getInventoryData(
         const lvl = product.stockLevels.find(
           (sl) => sl.warehouseId === params.warehouseId
         );
-        if (lvl) {
+        if (lvl && lvl.stocked) {
           onHand = lvl.onHand;
           booked = lvl.booked;
           available = computeAvailable(lvl);
           incoming = lvl.incoming;
           closeAt = lvl.closeAt;
+          closeAtDisplay = String(lvl.closeAt);
           status = statusFor(lvl);
         } else {
           onHand = 0;
@@ -198,6 +251,7 @@ export async function getInventoryData(
           available = 0;
           incoming = 0;
           closeAt = 0;
+          closeAtDisplay = "0";
           status = "Sold out";
         }
       } else {
@@ -210,17 +264,20 @@ export async function getInventoryData(
         );
         incoming = stockedLevels.reduce((acc, sl) => acc + sl.incoming, 0);
         closeAt = stockedLevels.reduce((acc, sl) => acc + sl.closeAt, 0);
-        const minLevelTotal = stockedLevels.reduce(
-          (acc, sl) => acc + sl.minLevel,
-          0
-        );
 
-        status = statusFor({
-          onHand,
-          booked,
-          closeAt,
-          minLevel: minLevelTotal,
-        });
+        // Fix 1: "The 'Close at' column shows the value when all stocked warehouses share it, otherwise 'Varies'."
+        if (stockedLevels.length === 0) {
+          closeAtDisplay = "0";
+        } else {
+          const firstCloseAt = stockedLevels[0].closeAt;
+          const allShare = stockedLevels.every(
+            (sl) => sl.closeAt === firstCloseAt
+          );
+          closeAtDisplay = allShare ? String(firstCloseAt) : "Varies";
+        }
+
+        // Fix 1: Use statusForLevels(stockedLevels)
+        status = statusForLevels(stockedLevels);
       }
     }
 
@@ -238,22 +295,24 @@ export async function getInventoryData(
       available,
       incoming,
       closeAt,
+      closeAtDisplay,
       status,
       lastPush: formatRelativeTime(latestPushDate),
       lastPushedAt: latestPushDate,
     };
   });
 
-  // 4. Compute Tab Counts based on all items (independent of active tab filter)
+  // 5. Compute Tab Counts based on all items (independent of active tab filter)
+  // Fix 2: Unlinked count comes from Listing rows where productId is null
   const tabs: InventoryTabCounts = {
     all: computedItems.length,
     low_stock: computedItems.filter((item) => item.status === "Low stock").length,
     sold_out: computedItems.filter((item) => item.status === "Sold out").length,
     held: computedItems.filter((item) => item.status === "Held at 0").length,
-    unlinked: computedItems.filter((item) => item.channels.length === 0).length,
+    unlinked: unlinkedListings.length,
   };
 
-  // 5. Apply Active Tab Filter
+  // 6. Apply Active Tab Filter
   let filteredItems = computedItems;
   const currentView = params.view ?? "all";
   if (currentView === "low_stock") {
@@ -262,11 +321,9 @@ export async function getInventoryData(
     filteredItems = filteredItems.filter((item) => item.status === "Sold out");
   } else if (currentView === "held") {
     filteredItems = filteredItems.filter((item) => item.status === "Held at 0");
-  } else if (currentView === "unlinked") {
-    filteredItems = filteredItems.filter((item) => item.channels.length === 0);
   }
 
-  // 6. Apply Search Query Filter (name, sku, barcode)
+  // 7. Apply Search Query Filter (name, sku, barcode)
   if (params.q && params.q.trim()) {
     const query = params.q.trim().toLowerCase();
     filteredItems = filteredItems.filter((item) => {
@@ -279,14 +336,14 @@ export async function getInventoryData(
     });
   }
 
-  // 7. Apply Channel Filter
+  // 8. Apply Channel Filter
   if (params.channelId) {
     filteredItems = filteredItems.filter((item) =>
       item.channels.some((c) => c.id === params.channelId)
     );
   }
 
-  // 8. Prepare Selectable Products for the AdjustStockDialog
+  // 9. Prepare Selectable Products for the AdjustStockDialog
   const selectableProducts: SelectableProductOption[] = allProducts.map(
     (product) => ({
       id: product.id,
@@ -307,6 +364,7 @@ export async function getInventoryData(
 
   return {
     items: filteredItems,
+    unlinkedListings,
     tabs,
     warehouses,
     channels,
