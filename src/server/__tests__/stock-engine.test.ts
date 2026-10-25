@@ -8,6 +8,7 @@ import {
   statusFor,
   statusForLevels,
   getAvailable,
+  updateStockSettings,
 } from "@/server/stock";
 import { bundleAvailable } from "@/server/bundles";
 import {
@@ -630,6 +631,50 @@ describe("Stock Engine (Real PostgreSQL Test Database)", () => {
         { onHand: 100, booked: 0, closeAt: 0, minLevel: 0, stocked: false }, // Ignored!
       ]);
       expect(status).toBe("Sold out");
+    });
+  });
+
+  describe("updateStockSettings()", () => {
+    it("updates closeAt and minLevel without modifying onHand", async () => {
+      const product = await createProductWithStock({
+        sku: "TEST-SETTINGS",
+        warehouseId: warehouse1Id,
+        onHand: 25,
+        closeAt: 0,
+        minLevel: 5,
+        stocked: true,
+      });
+
+      const updated = await updateStockSettings({
+        accountId,
+        productId: product.id,
+        warehouseId: warehouse1Id,
+        closeAt: 3,
+        minLevel: 10,
+      });
+
+      expect(updated.closeAt).toBe(3);
+      expect(updated.minLevel).toBe(10);
+      expect(updated.onHand).toBe(25); // onHand MUST NEVER be touched!
+    });
+
+    it("rejects negative closeAt or minLevel", async () => {
+      const product = await createProductWithStock({
+        sku: "TEST-SETTINGS-NEG",
+        warehouseId: warehouse1Id,
+        onHand: 10,
+        closeAt: 0,
+        minLevel: 5,
+      });
+
+      await expect(
+        updateStockSettings({
+          accountId,
+          productId: product.id,
+          warehouseId: warehouse1Id,
+          closeAt: -1,
+        })
+      ).rejects.toThrow(InvalidDeltaError);
     });
   });
 });

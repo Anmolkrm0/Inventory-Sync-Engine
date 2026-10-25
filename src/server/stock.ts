@@ -324,3 +324,82 @@ export async function setStock(input: SetStockInput): Promise<StockLevel> {
     userId
   );
 }
+
+export interface UpdateStockSettingsInput {
+  accountId: string;
+  productId: string;
+  warehouseId: string;
+  closeAt?: number;
+  minLevel?: number;
+}
+
+/**
+ * Updates stock settings (closeAt, minLevel) for a product in a warehouse.
+ * Validates integers >= 0, scoped to account, and never modifies onHand.
+ */
+export async function updateStockSettings(
+  input: UpdateStockSettingsInput
+): Promise<StockLevel> {
+  const { accountId, productId, warehouseId, closeAt, minLevel } = input;
+
+  if (closeAt !== undefined) {
+    if (!Number.isInteger(closeAt) || closeAt < 0 || closeAt > 1_000_000) {
+      throw new InvalidDeltaError(
+        `closeAt must be a non-negative integer <= 1,000,000, received: ${closeAt}`
+      );
+    }
+  }
+
+  if (minLevel !== undefined) {
+    if (!Number.isInteger(minLevel) || minLevel < 0 || minLevel > 1_000_000) {
+      throw new InvalidDeltaError(
+        `minLevel must be a non-negative integer <= 1,000,000, received: ${minLevel}`
+      );
+    }
+  }
+
+  // Verify product and warehouse belong to accountId
+  const [product, warehouse] = await Promise.all([
+    prisma.product.findFirst({
+      where: { id: productId, accountId },
+      select: { id: true, isBundle: true },
+    }),
+    prisma.warehouse.findFirst({
+      where: { id: warehouseId, accountId },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!product || !warehouse) {
+    throw new NotFoundError(
+      `Product ${productId} or Warehouse ${warehouseId} not found for account ${accountId}`
+    );
+  }
+
+  if (product.isBundle) {
+    throw new BundleStockError(
+      "Bundle products cannot have warehouse stock settings directly"
+    );
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    // Ensure the row exists
+    await tx.$executeRaw`
+      INSERT INTO "StockLevel" ("productId", "warehouseId", "onHand", "booked", "incoming", "closeAt", "minLevel", "stocked")
+      VALUES (${productId}, ${warehouseId}, 0, 0, 0, 0, 0, true)
+      ON CONFLICT ("productId", "warehouseId") DO NOTHING
+    `;
+
+    const dataToUpdate: { closeAt?: number; minLevel?: number } = {};
+    if (closeAt !== undefined) dataToUpdate.closeAt = closeAt;
+    if (minLevel !== undefined) dataToUpdate.minLevel = minLevel;
+
+    return await tx.stockLevel.update({
+      where: {
+        productId_warehouseId: { productId, warehouseId },
+      },
+      data: dataToUpdate,
+    });
+  });
+}
+
