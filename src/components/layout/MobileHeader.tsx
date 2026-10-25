@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Menu, Activity } from "lucide-react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { type CurrentAccount } from "@/server/account";
 import { SidebarContent } from "@/components/layout/SidebarContent";
 
@@ -23,7 +23,7 @@ export function MobileHeader({ account }: { account: CurrentAccount }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="h-10 w-10 flex items-center justify-center rounded-[8px] text-sidebar-text hover:text-white hover:bg-sidebar-raised transition-colors cursor-pointer"
+        className="h-11 w-11 flex items-center justify-center rounded-[8px] text-sidebar-text hover:text-white hover:bg-sidebar-raised transition-colors cursor-pointer"
         aria-label="Open menu"
       >
         <Menu className="h-5 w-5" strokeWidth={1.8} />
@@ -34,6 +34,7 @@ export function MobileHeader({ account }: { account: CurrentAccount }) {
           side="left"
           className="w-[280px] p-4 bg-sidebar-bg border-r border-sidebar-border text-sidebar-text flex flex-col justify-between"
         >
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarContent
             account={account}
             onNavigate={() => setOpen(false)}

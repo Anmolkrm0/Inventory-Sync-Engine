@@ -1,5 +1,5 @@
 import React from "react";
-import { ChannelType } from "@prisma/client";
+import type { ChannelType } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
 export interface ChannelTileProps extends React.HTMLAttributes<HTMLSpanElement> {

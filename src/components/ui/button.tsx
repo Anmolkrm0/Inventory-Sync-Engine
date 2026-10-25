@@ -12,6 +12,8 @@ const buttonVariants = cva(
           "bg-accent text-white hover:bg-accent-hover font-semibold",
         primary:
           "bg-accent text-white hover:bg-accent-hover font-semibold",
+        accent:
+          "bg-accent text-white hover:bg-accent-hover font-semibold",
         ink:
           "bg-ink text-white hover:bg-ink/90 font-medium",
         destructive:

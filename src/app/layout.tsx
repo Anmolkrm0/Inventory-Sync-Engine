@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   description: "Multichannel inventory synchronization system with master stock tracking.",
 };
 
+import { ToastProvider } from "@/components/shared/Toast";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,7 +40,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${interTight.variable} ${jetbrainsMono.variable} font-body text-ink bg-ground min-h-screen antialiased`}
       >
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );
