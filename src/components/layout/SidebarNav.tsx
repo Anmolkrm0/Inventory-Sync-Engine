@@ -30,11 +30,19 @@ const navItems: NavItem[] = [
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function SidebarNav() {
+export interface SidebarNavProps {
+  onNavigate?: () => void;
+  className?: string;
+}
+
+export function SidebarNav({ onNavigate, className }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-1 w-full" aria-label="Main Navigation">
+    <nav
+      className={cn("flex flex-col gap-1 w-full", className)}
+      aria-label="Main Navigation"
+    >
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive =
@@ -46,11 +54,12 @@ export function SidebarNav() {
           <Link
             key={item.href}
             href={item.href}
+            onClick={() => onNavigate?.()}
             className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm transition-colors select-none group",
+              "flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-[10px] text-sm transition-colors select-none group",
               isActive
-                ? "bg-[#1B2030] text-white font-medium shadow-xs"
-                : "text-[#9AA3B2] hover:bg-[#151925] hover:text-[#C9CED8]"
+                ? "bg-sidebar-active text-white font-medium shadow-xs"
+                : "text-sidebar-text hover:bg-sidebar-raised hover:text-white"
             )}
             aria-current={isActive ? "page" : undefined}
           >
@@ -59,7 +68,7 @@ export function SidebarNav() {
                 "h-4 w-4 shrink-0 transition-colors",
                 isActive
                   ? "text-white"
-                  : "text-[#9AA3B2] group-hover:text-[#C9CED8]"
+                  : "text-sidebar-dim group-hover:text-sidebar-text"
               )}
               strokeWidth={1.8}
             />

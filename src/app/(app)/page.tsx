@@ -26,7 +26,7 @@ export default function DashboardPage() {
           value="916"
           change="+12 today"
           changeType="good"
-          subtitle="Across 3 warehouses"
+          note="Across 3 warehouses"
           sparkline={[20, 24, 22, 28, 30, 26, 32, 35, 34, 38, 42, 40, 45, 48]}
           sparklineColor="accent"
         />
@@ -35,7 +35,7 @@ export default function DashboardPage() {
           value="38"
           change="99.9% success"
           changeType="good"
-          subtitle="1.8s median push"
+          note="1.8s median push"
           sparkline={[5, 8, 12, 10, 15, 14, 18, 22, 20, 25, 28, 32, 30, 38]}
           sparklineColor="good"
         />
@@ -44,7 +44,7 @@ export default function DashboardPage() {
           value="2"
           change="Needs review"
           changeType="warn"
-          subtitle="Mug & Linen Tote"
+          note="Mug & Linen Tote"
           sparkline={[1, 1, 2, 2, 1, 1, 2, 3, 2, 2, 3, 2, 2, 2]}
           sparklineColor="warn"
         />
@@ -53,7 +53,7 @@ export default function DashboardPage() {
           value="14"
           change="Past 30 days"
           changeType="neutral"
-          subtitle="Held-at-0 close-at rules"
+          note="Held-at-0 close-at rules"
           sparkline={[0, 1, 0, 2, 1, 0, 1, 2, 1, 1, 2, 1, 1, 1]}
           sparklineColor="ink"
         />

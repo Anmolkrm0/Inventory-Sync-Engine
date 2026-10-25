@@ -9,26 +9,26 @@ export interface StatusPillProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const statusStyles: Record<StockStatus, { container: string; dot: string }> = {
   Healthy: {
-    container: "bg-good-soft text-good-text border border-good/20",
+    container: "bg-good-soft text-good-text",
     dot: "bg-good",
   },
   "Low stock": {
-    container: "bg-warn-soft text-warn-text border border-warn-border",
+    container: "bg-warn-soft text-warn-text",
     dot: "bg-warn",
   },
   "Sold out": {
-    container: "bg-bad-soft text-bad-text border border-bad/20",
+    container: "bg-bad-soft text-bad-text",
     dot: "bg-bad",
   },
   "Held at 0": {
-    container: "bg-accent-soft text-accent-text border border-accent/20",
+    container: "bg-accent-soft text-accent-text",
     dot: "bg-accent",
   },
 };
 
 export function StatusPill({
   status,
-  showDot = false,
+  showDot = true,
   className,
   ...props
 }: StatusPillProps) {

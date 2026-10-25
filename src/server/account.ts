@@ -21,3 +21,42 @@ export async function getCurrentAccountId(): Promise<string> {
 export function resetCachedAccountId() {
   cachedAccountId = null;
 }
+
+export interface CurrentAccount {
+  id: string;
+  name: string;
+  user: {
+    name: string;
+    role: string;
+  };
+}
+
+export async function getCurrentAccount(): Promise<CurrentAccount> {
+  const accountId = await getCurrentAccountId();
+  const account = await prisma.account.findUniqueOrThrow({
+    where: { id: accountId },
+    include: {
+      users: {
+        take: 1,
+      },
+    },
+  });
+
+  const currentUser = account.users[0] ?? {
+    name: "Anmol K.",
+    role: "OWNER",
+  };
+
+  const roleStr = currentUser.role.toString();
+  const roleTitleCase =
+    roleStr.charAt(0).toUpperCase() + roleStr.slice(1).toLowerCase();
+
+  return {
+    id: account.id,
+    name: account.name,
+    user: {
+      name: currentUser.name,
+      role: roleTitleCase,
+    },
+  };
+}
