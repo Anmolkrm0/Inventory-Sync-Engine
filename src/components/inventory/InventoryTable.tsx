@@ -221,7 +221,7 @@ export function InventoryTable({
               </TableHead>
 
               {/* Status */}
-              <TableHead className="w-28 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">
+              <TableHead className="w-32 min-w-[120px] py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">
                 Status
               </TableHead>
 
@@ -300,18 +300,18 @@ export function InventoryTable({
                         ))}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted italic">Unlinked</span>
+                      <span className="text-xs text-muted">No listings</span>
                     )}
                   </TableCell>
 
                   {/* In Stock */}
                   <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-ink font-medium">
-                    {item.onHand}
+                    {item.isBundle ? "—" : item.onHand}
                   </TableCell>
 
                   {/* Booked */}
                   <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-muted">
-                    {item.booked}
+                    {item.isBundle ? "—" : item.booked}
                   </TableCell>
 
                   {/* Available (Bold) */}
@@ -321,16 +321,16 @@ export function InventoryTable({
 
                   {/* Incoming */}
                   <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-muted">
-                    {item.incoming > 0 ? `+${item.incoming}` : "0"}
+                    {item.isBundle ? "—" : item.incoming > 0 ? `+${item.incoming}` : "0"}
                   </TableCell>
 
                   {/* Close at (shows value or 'Varies') */}
                   <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-muted">
-                    {item.closeAtDisplay}
+                    {item.isBundle ? "—" : item.closeAtDisplay}
                   </TableCell>
 
                   {/* Status Pill */}
-                  <TableCell className="py-3">
+                  <TableCell className="py-3 min-w-[120px]">
                     <StatusPill status={item.status} />
                   </TableCell>
 

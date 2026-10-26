@@ -1,6 +1,8 @@
 import React from "react";
 import { getCurrentAccountId } from "@/server/account";
 import { getDashboardData, type DashboardRange } from "@/server/dashboard";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { formatInAppTimezone } from "@/server/timezone";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { KpiTile } from "@/components/shared/KpiTile";
 import { OrdersChartCard } from "@/components/dashboard/OrdersChartCard";
@@ -27,8 +29,20 @@ export default async function DashboardPage({
   const accountId = await getCurrentAccountId();
   const data = await getDashboardData(accountId, range);
 
+  const todayFormatted = formatInAppTimezone(new Date(), {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+
   return (
     <div className="space-y-6 max-w-[1240px] mx-auto pb-12">
+      <PageHeader
+        title="Dashboard"
+        description={todayFormatted}
+        className="pb-0"
+      />
+
       {/* 1. Header with Live push pill, GET search form, and Adjust stock trigger */}
       <DashboardHeader
         lastPushPill={data.lastPushPill}

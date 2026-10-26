@@ -98,7 +98,7 @@ export function SkuHeader({
       {/* Adjust stock button */}
       <div className="flex items-center gap-2 shrink-0">
         <Button
-          variant="ink"
+          variant="primary"
           onClick={() => setIsAdjustOpen(true)}
           className="gap-2 shadow-xs cursor-pointer"
         >

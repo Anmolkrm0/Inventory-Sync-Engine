@@ -141,7 +141,7 @@ export async function getInventoryData(
             include: { channel: true },
           },
         },
-        orderBy: { sku: "asc" },
+        orderBy: { name: "asc" },
       }),
       prisma.listing.findMany({
         where: {
@@ -296,6 +296,9 @@ export async function getInventoryData(
       lastPushedAt: latestPushDate,
     };
   });
+
+  // Sort rows strictly by product name, not SKU
+  computedItems.sort((a, b) => a.name.localeCompare(b.name));
 
   // 5. Compute Tab Counts based on all items (independent of active tab filter)
   // Fix 2: Unlinked count comes from Listing rows where productId is null

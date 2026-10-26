@@ -40,7 +40,7 @@ export function InventoryTabs({ counts, currentView }: InventoryTabsProps) {
 
   return (
     <div
-      className="flex items-center gap-1.5 overflow-x-auto pb-1 select-none scrollbar-none"
+      className="flex items-center gap-1.5 overflow-x-auto pb-1 select-none scrollbar-none w-full max-w-full min-w-0"
       role="tablist"
       aria-label="Saved Views"
     >

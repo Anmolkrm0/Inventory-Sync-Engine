@@ -93,7 +93,7 @@ export function InventoryClient({
           title="Inventory"
           description="Master stock control across all warehouses with real-time sales channel push."
           actions={
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               {/* Import CSV (disabled, tooltip Coming soon) */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -125,10 +125,10 @@ export function InventoryClient({
 
               {/* Adjust Stock Button */}
               <Button
-                variant="ink"
+                variant="primary"
                 size="sm"
                 onClick={() => handleOpenAdjust()}
-                className="gap-2 h-[42px] px-4 rounded-[10px] bg-ink hover:bg-ink/90 text-white font-medium cursor-pointer shadow-xs"
+                className="gap-2 h-[42px] px-4 rounded-[10px] bg-accent hover:bg-accent-hover text-white font-medium cursor-pointer shadow-xs"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span>Adjust stock</span>

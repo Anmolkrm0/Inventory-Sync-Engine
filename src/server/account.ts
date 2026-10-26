@@ -36,6 +36,11 @@ export interface CurrentAccount {
     name: string;
     role: string;
   };
+  channelsHealth: {
+    total: number;
+    live: number;
+    allLive: boolean;
+  };
 }
 
 export async function getCurrentAccount(): Promise<CurrentAccount> {
@@ -45,6 +50,9 @@ export async function getCurrentAccount(): Promise<CurrentAccount> {
     include: {
       users: {
         take: 1,
+      },
+      channels: {
+        select: { status: true },
       },
     },
   });
@@ -57,6 +65,9 @@ export async function getCurrentAccount(): Promise<CurrentAccount> {
       include: {
         users: {
           take: 1,
+        },
+        channels: {
+          select: { status: true },
         },
       },
     });
@@ -71,12 +82,21 @@ export async function getCurrentAccount(): Promise<CurrentAccount> {
   const roleTitleCase =
     roleStr.charAt(0).toUpperCase() + roleStr.slice(1).toLowerCase();
 
+  const totalChannels = account.channels.length;
+  const liveChannels = account.channels.filter((c) => c.status === "LIVE").length;
+  const allLive = totalChannels > 0 && liveChannels === totalChannels;
+
   return {
     id: account.id,
     name: account.name,
     user: {
       name: currentUser.name,
       role: roleTitleCase,
+    },
+    channelsHealth: {
+      total: totalChannels,
+      live: liveChannels,
+      allLive,
     },
   };
 }

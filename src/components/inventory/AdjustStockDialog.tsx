@@ -315,7 +315,7 @@ export function AdjustStockDialog({
             </Button>
             <Button
               type="submit"
-              variant="ink"
+              variant="primary"
               disabled={isPending}
               className="gap-2"
             >

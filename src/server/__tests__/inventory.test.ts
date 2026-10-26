@@ -181,7 +181,8 @@ describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
     });
 
     const wh1Data = await getInventoryData({ warehouseId });
-    expect(wh1Data.items.map((i) => i.sku)).toEqual(["MUG-001", "PEN-002"]);
+    // Sorted by product name ascending: "Brass Pen" (PEN-002) comes before "Test Mug" (MUG-001)
+    expect(wh1Data.items.map((i) => i.sku)).toEqual(["PEN-002", "MUG-001"]);
 
     // In warehouse2, PEN-002 is not stocked so it must be hidden!
     const wh2Data = await getInventoryData({ warehouseId: warehouse2Id });
@@ -289,5 +290,18 @@ describe("Inventory Data Layer & Actions (Real PostgreSQL)", () => {
     expect(hugeQty.message).toBe(
       "Quantity must be an integer between -1,000,000 and 1,000,000."
     );
+  });
+
+  it("sorts inventory items by product name ascending, not SKU", async () => {
+    await prisma.product.createMany({
+      data: [
+        { accountId, sku: "ZZZ-999", name: "Apple Sticker" },
+        { accountId, sku: "AAA-111", name: "Zebra Notebook" },
+      ],
+    });
+
+    const data = await getInventoryData();
+    const names = data.items.map((i) => i.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 });

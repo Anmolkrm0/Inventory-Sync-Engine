@@ -84,15 +84,21 @@ export function ChannelCard({ channel }: ChannelCardProps) {
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button / Connection Info */}
         <div className="pt-4 mt-2">
           {channel.connected ? (
-            <div className="flex items-center justify-between text-xs text-muted px-1">
-              <span className="flex items-center gap-1 text-good-text font-medium">
-                <Check className="h-3.5 w-3.5" />
-                Live sync ready
-              </span>
-              <span className="text-muted font-mono">
+            <div className="flex items-center justify-between text-xs text-muted px-1 gap-2">
+              {channel.status === "REVIEW" ? (
+                <span className="flex items-center gap-1.5 text-warn-text font-medium shrink-0">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  Review required
+                </span>
+              ) : (
+                <span className="text-muted font-medium truncate">
+                  Imported · sync arrives with channel connection
+                </span>
+              )}
+              <span className="text-muted font-mono shrink-0">
                 {channel.totalListingCount} total listings
               </span>
             </div>

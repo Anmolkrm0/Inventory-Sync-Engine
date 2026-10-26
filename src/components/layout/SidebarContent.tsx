@@ -2,6 +2,7 @@ import React from "react";
 import { Activity, ChevronsUpDown } from "lucide-react";
 import { type CurrentAccount } from "@/server/account";
 import { SidebarNav } from "@/components/layout/SidebarNav";
+import { cn } from "@/lib/utils";
 
 export interface SidebarContentProps {
   account: CurrentAccount;
@@ -53,19 +54,26 @@ export function SidebarContent({ account, onNavigate }: SidebarContentProps) {
 
       {/* Bottom Section: Sync Card with static glow & User Profile (32px avatar, role: Owner) */}
       <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-sidebar-border">
-        {/* Sync engine healthy card with static glow (no animate-ping) */}
+        {/* Sync engine card derived from DB channels health */}
         <div className="rounded-[10px] bg-sidebar-raised border border-sidebar-border p-3 flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <span
-              className="inline-flex rounded-full h-2 w-2 bg-good shadow-[0_0_8px_#12A150] shrink-0"
+              className={cn(
+                "inline-flex rounded-full h-2 w-2 shrink-0",
+                account.channelsHealth.allLive
+                  ? "bg-good shadow-[0_0_8px_#12A150]"
+                  : "bg-warn shadow-[0_0_8px_#F2A33A]"
+              )}
               aria-hidden="true"
             />
             <span className="text-xs font-semibold text-white tracking-tight">
-              Sync engine healthy
+              {account.channelsHealth.allLive
+                ? "Sync engine healthy"
+                : "Needs attention"}
             </span>
           </div>
           <p className="text-[11px] text-sidebar-dim leading-tight">
-            All 5 channels live · median push 1.8s
+            {account.channelsHealth.live} of {account.channelsHealth.total} channels live
           </p>
         </div>
 

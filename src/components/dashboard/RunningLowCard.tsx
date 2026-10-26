@@ -42,7 +42,7 @@ export function RunningLowCard({ items }: RunningLowCardProps) {
                   <th className="py-2.5 px-5">Product</th>
                   <th className="py-2.5 px-4 text-right">Available</th>
                   <th className="py-2.5 px-4 w-44">Stock Runway</th>
-                  <th className="py-2.5 px-5 text-center">Status</th>
+                  <th className="py-2.5 px-5 text-center min-w-[120px]">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline">
@@ -118,7 +118,7 @@ export function RunningLowCard({ items }: RunningLowCardProps) {
                         </div>
                       </td>
 
-                      <td className="py-3 px-5 text-center">
+                      <td className="py-3 px-5 text-center min-w-[120px]">
                         <StatusPill status={item.status} />
                       </td>
                     </tr>

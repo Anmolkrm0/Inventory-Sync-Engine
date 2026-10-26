@@ -90,9 +90,9 @@ export function InventoryFilters({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 select-none">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 select-none w-full min-w-0">
       {/* Search Input */}
-      <div className="relative flex-1 min-w-[240px] max-w-md">
+      <div className="relative flex-1 min-w-0 max-w-md">
         <Search
           className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none"
           strokeWidth={1.8}
@@ -122,7 +122,7 @@ export function InventoryFilters({
       </div>
 
       {/* Filter Dropdown Buttons */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto min-w-0">
         {/* Warehouse Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

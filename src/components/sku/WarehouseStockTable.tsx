@@ -130,7 +130,7 @@ export function WarehouseStockTable({
               <th className="py-3 px-4 text-right">Available</th>
               <th className="py-3 px-4 text-right">Incoming</th>
               <th className="py-3 px-5 text-right w-36">Close at</th>
-              <th className="py-3 px-5 text-center">Status</th>
+              <th className="py-3 px-5 text-center min-w-[120px]">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
@@ -180,7 +180,7 @@ export function WarehouseStockTable({
                     <span className="text-muted text-xs">—</span>
                   )}
                 </td>
-                <td className="py-3.5 px-5 text-center">
+                <td className="py-3.5 px-5 text-center min-w-[120px]">
                   {wh.stocked ? (
                     <StatusPill status={wh.status} />
                   ) : (

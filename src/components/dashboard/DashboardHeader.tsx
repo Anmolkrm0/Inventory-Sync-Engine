@@ -48,7 +48,7 @@ export function DashboardHeader({
         </form>
 
         <Button
-          variant="ink"
+          variant="primary"
           onClick={() => setIsAdjustOpen(true)}
           className="gap-2 h-[42px] rounded-[10px] shadow-xs cursor-pointer"
         >
