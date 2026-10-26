@@ -16,6 +16,7 @@ import {
   NotFoundError,
   BundleStockError,
   InvalidDeltaError,
+  InvalidSettingError,
 } from "@/server/errors";
 import { MoveReason } from "@prisma/client";
 
@@ -674,7 +675,7 @@ describe("Stock Engine (Real PostgreSQL Test Database)", () => {
           warehouseId: warehouse1Id,
           closeAt: -1,
         })
-      ).rejects.toThrow(InvalidDeltaError);
+      ).rejects.toThrow(InvalidSettingError);
     });
   });
 });

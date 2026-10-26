@@ -45,3 +45,37 @@ export class InvalidDeltaError extends StockError {
     this.name = "InvalidDeltaError";
   }
 }
+
+export class InvalidSettingError extends StockError {
+  constructor(message = "Setting value is invalid") {
+    super(message, "INVALID_SETTING");
+    this.name = "InvalidSettingError";
+  }
+}
+
+/**
+ * Maps error to friendly, user-facing text without internal IDs or technical stack traces.
+ */
+export function toUserMessage(error: unknown): string {
+  if (error instanceof InsufficientStockError) {
+    return `Not enough stock: only ${error.onHand} on hand`;
+  }
+
+  if (error instanceof StockError) {
+    switch (error.code) {
+      case "NOT_FOUND":
+        return "That product or warehouse no longer exists.";
+      case "BUNDLE_STOCK_ERROR":
+        return "Bundles don't hold stock; adjust their components.";
+      case "INVALID_DELTA":
+      case "INVALID_SETTING":
+        return error.message;
+      case "INSUFFICIENT_STOCK":
+        return `Not enough stock: only ${(error as InsufficientStockError).onHand ?? 0} on hand`;
+      default:
+        return error.message;
+    }
+  }
+
+  return "An unexpected error occurred. Please try again.";
+}

@@ -5,6 +5,7 @@ import {
   NotFoundError,
   BundleStockError,
   InvalidDeltaError,
+  InvalidSettingError,
 } from "@/server/errors";
 
 export type StockStatus = "Healthy" | "Low stock" | "Sold out" | "Held at 0";
@@ -344,16 +345,16 @@ export async function updateStockSettings(
 
   if (closeAt !== undefined) {
     if (!Number.isInteger(closeAt) || closeAt < 0 || closeAt > 1_000_000) {
-      throw new InvalidDeltaError(
-        `closeAt must be a non-negative integer <= 1,000,000, received: ${closeAt}`
+      throw new InvalidSettingError(
+        `Close-at must be a non-negative integer <= 1,000,000, received: ${closeAt}`
       );
     }
   }
 
   if (minLevel !== undefined) {
     if (!Number.isInteger(minLevel) || minLevel < 0 || minLevel > 1_000_000) {
-      throw new InvalidDeltaError(
-        `minLevel must be a non-negative integer <= 1,000,000, received: ${minLevel}`
+      throw new InvalidSettingError(
+        `Min level must be a non-negative integer <= 1,000,000, received: ${minLevel}`
       );
     }
   }

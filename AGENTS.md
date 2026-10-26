@@ -251,3 +251,4 @@ enum MoveReason { ORDER CANCEL RETURN PO_RECEIVE MANUAL STOCKTAKE TRANSFER }
 3. Echo guard + "changed outside app" detection and review queue
 4. Reconciliation job every 15 minutes
 5. WooCommerce connector, then Amazon / eBay / Etsy
+6. Any change to onHand, booked or closeAt must enqueue a channel push.

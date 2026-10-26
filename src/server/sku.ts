@@ -145,11 +145,13 @@ export async function getSkuDetail(
   const totalIncoming = stockedLevels.reduce((acc, lvl) => acc + lvl.incoming, 0);
   const aggregateStatus = statusForLevels(stockedLevels);
 
-  // 4. Fetch StockMovements for the last 30 days to compute 30-day trend and sales velocity
+  // 4. Fetch StockMovements for the last 30 days from STOCKED warehouses only
+  const stockedWarehouseIds = stockedLevels.map((lvl) => lvl.warehouseId);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const movements30Days = await prisma.stockMovement.findMany({
     where: {
       productId: product.id,
+      warehouseId: { in: stockedWarehouseIds },
       createdAt: { gte: thirtyDaysAgo },
     },
     orderBy: { createdAt: "asc" },

@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentAccountId } from "@/server/account";
 import { updateStockSettings } from "@/server/stock";
-import { StockError } from "@/server/errors";
+import {
+  NotFoundError,
+  InvalidSettingError,
+  toUserMessage,
+} from "@/server/errors";
 
 export interface UpdateCloseAtActionInput {
   productId: string;
@@ -29,17 +33,13 @@ export async function updateCloseAtAction(
       input.closeAt < 0 ||
       input.closeAt > 1_000_000
     ) {
-      return {
-        ok: false,
-        message: "Close-at must be a non-negative integer <= 1,000,000.",
-      };
+      throw new InvalidSettingError(
+        "Close-at must be a non-negative integer <= 1,000,000."
+      );
     }
 
     if (!input.productId || !input.warehouseId) {
-      return {
-        ok: false,
-        message: "Valid product and warehouse IDs are required.",
-      };
+      throw new NotFoundError("Valid product and warehouse IDs are required.");
     }
 
     await updateStockSettings({
@@ -55,17 +55,10 @@ export async function updateCloseAtAction(
 
     return { ok: true };
   } catch (error) {
-    if (error instanceof StockError) {
-      return {
-        ok: false,
-        message: error.message,
-      };
-    }
-
-    console.error("updateCloseAtAction unexpected error:", error);
+    console.error("updateCloseAtAction error:", error);
     return {
       ok: false,
-      message: "An unexpected error occurred while updating close-at.",
+      message: toUserMessage(error),
     };
   }
 }

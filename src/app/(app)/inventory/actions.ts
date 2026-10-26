@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentAccountId } from "@/server/account";
 import { applyStockMovement, setStock } from "@/server/stock";
-import { StockError, InsufficientStockError } from "@/server/errors";
+import {
+  StockError,
+  NotFoundError,
+  InvalidDeltaError,
+  toUserMessage,
+} from "@/server/errors";
 import { MoveReason } from "@prisma/client";
 
 export interface AdjustStockActionInput {
@@ -37,11 +42,7 @@ export async function adjustStockAction(
       typeof input.productId !== "string" ||
       !input.productId.trim()
     ) {
-      return {
-        ok: false,
-        code: "VALIDATION_ERROR",
-        message: "A valid product must be selected.",
-      };
+      throw new NotFoundError("A valid product must be selected.");
     }
 
     if (
@@ -49,19 +50,11 @@ export async function adjustStockAction(
       typeof input.warehouseId !== "string" ||
       !input.warehouseId.trim()
     ) {
-      return {
-        ok: false,
-        code: "VALIDATION_ERROR",
-        message: "A valid warehouse must be selected.",
-      };
+      throw new NotFoundError("A valid warehouse must be selected.");
     }
 
     if (input.mode !== "adjust" && input.mode !== "set") {
-      return {
-        ok: false,
-        code: "VALIDATION_ERROR",
-        message: "Mode must be 'adjust' or 'set'.",
-      };
+      throw new InvalidDeltaError("Mode must be 'adjust' or 'set'.");
     }
 
     if (
@@ -69,28 +62,18 @@ export async function adjustStockAction(
       !Number.isInteger(input.quantity) ||
       Math.abs(input.quantity) > 1_000_000
     ) {
-      return {
-        ok: false,
-        code: "VALIDATION_ERROR",
-        message: "Quantity must be an integer between -1,000,000 and 1,000,000.",
-      };
+      throw new InvalidDeltaError(
+        "Quantity must be an integer between -1,000,000 and 1,000,000."
+      );
     }
 
     if (!validReasons.has(input.reason)) {
-      return {
-        ok: false,
-        code: "VALIDATION_ERROR",
-        message: "Invalid reason provided.",
-      };
+      throw new InvalidDeltaError("Invalid reason provided.");
     }
 
     if (input.mode === "set") {
       if (input.quantity < 0) {
-        return {
-          ok: false,
-          code: "VALIDATION_ERROR",
-          message: "Target stock on hand cannot be negative.",
-        };
+        throw new InvalidDeltaError("Target stock on hand cannot be negative.");
       }
 
       await setStock({
@@ -104,11 +87,9 @@ export async function adjustStockAction(
       });
     } else {
       if (input.quantity === 0) {
-        return {
-          ok: false,
-          code: "INVALID_DELTA",
-          message: "Quantity adjustment must be a non-zero whole number.",
-        };
+        throw new InvalidDeltaError(
+          "Quantity adjustment must be a non-zero whole number."
+        );
       }
 
       await applyStockMovement({
@@ -128,28 +109,11 @@ export async function adjustStockAction(
 
     return { ok: true };
   } catch (error) {
-    if (error instanceof InsufficientStockError) {
-      return {
-        ok: false,
-        code: "INSUFFICIENT_STOCK",
-        message: `Not enough stock: only ${error.onHand} on hand`,
-      };
-    }
-
-    if (error instanceof StockError) {
-      return {
-        ok: false,
-        code: error.code,
-        message: error.message,
-      };
-    }
-
-    console.error("adjustStockAction unexpected error:", error);
-
+    console.error("adjustStockAction error:", error);
     return {
       ok: false,
-      code: "UNKNOWN_ERROR",
-      message: "An unexpected error occurred while adjusting stock.",
+      code: error instanceof StockError ? error.code : "UNKNOWN_ERROR",
+      message: toUserMessage(error),
     };
   }
 }

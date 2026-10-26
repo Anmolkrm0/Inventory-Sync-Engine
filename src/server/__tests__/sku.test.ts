@@ -4,6 +4,14 @@ import { getSkuDetail } from "@/server/sku";
 import { updateCloseAtAction } from "@/app/(app)/inventory/[sku]/actions";
 import { resetCachedAccountId } from "@/server/account";
 import { ChannelType, MoveReason } from "@prisma/client";
+import {
+  toUserMessage,
+  NotFoundError,
+  BundleStockError,
+  InsufficientStockError,
+  InvalidDeltaError,
+  InvalidSettingError,
+} from "@/server/errors";
 
 // Mock next/navigation for notFound and redirect
 vi.mock("next/navigation", () => ({
@@ -275,5 +283,78 @@ describe("SKU Detail Server Layer & Actions (Real PostgreSQL)", () => {
 
     expect(res.ok).toBe(false);
     expect(res.message).toBe("Close-at must be a non-negative integer <= 1,000,000.");
+  });
+
+  it("trend and days-of-stock only use StockMovements from stocked warehouses", async () => {
+    // Create an unstocked warehouse
+    const unstockedWh = await prisma.warehouse.create({
+      data: {
+        accountId,
+        name: "Retail Shop",
+        kind: "Store",
+        sortOrder: 3,
+      },
+    });
+
+    await prisma.stockLevel.create({
+      data: {
+        productId,
+        warehouseId: unstockedWh.id,
+        onHand: 50,
+        booked: 0,
+        stocked: false, // NOT STOCKED!
+      },
+    });
+
+    // Add a massive ORDER movement in the unstocked warehouse
+    await prisma.stockMovement.create({
+      data: {
+        productId,
+        warehouseId: unstockedWh.id,
+        delta: -90,
+        reason: MoveReason.ORDER,
+        refLabel: "Store in-person sales",
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const detail = await getSkuDetail(accountId, testSku);
+
+    // Stock runway should still be computed ONLY from stocked warehouses (delta = -3 over 30d, avg = 0.1 -> 120d)
+    // If it included the unstocked warehouse (-90), avg would be (3+90)/30 = 3.1 -> 12 / 3.1 = 4 days
+    expect(detail.stats.daysOfStockLeft).toBe(120);
+
+    // Today's trend available is still 12
+    expect(detail.trend[29].available).toBe(12);
+  });
+
+  describe("toUserMessage()", () => {
+    it("maps NOT_FOUND to friendly message without ids", () => {
+      const err = new NotFoundError("Product cl123456 not found for account acc789");
+      expect(toUserMessage(err)).toBe("That product or warehouse no longer exists.");
+    });
+
+    it("maps BUNDLE_STOCK_ERROR to friendly message", () => {
+      const err = new BundleStockError();
+      expect(toUserMessage(err)).toBe("Bundles don't hold stock; adjust their components.");
+    });
+
+    it("maps INSUFFICIENT_STOCK to friendly message carrying onHand", () => {
+      const err = new InsufficientStockError(3, 10);
+      expect(toUserMessage(err)).toBe("Not enough stock: only 3 on hand");
+    });
+
+    it("maps INVALID_DELTA and INVALID_SETTING to validation text without ids", () => {
+      const deltaErr = new InvalidDeltaError("Quantity must be an integer between -1,000,000 and 1,000,000.");
+      expect(toUserMessage(deltaErr)).toBe("Quantity must be an integer between -1,000,000 and 1,000,000.");
+
+      const settingErr = new InvalidSettingError("Close-at must be a non-negative integer <= 1,000,000.");
+      expect(toUserMessage(settingErr)).toBe("Close-at must be a non-negative integer <= 1,000,000.");
+    });
+
+    it("maps unknown error to safe fallback message", () => {
+      const err = new Error("Database timeout on connection pool");
+      expect(toUserMessage(err)).toBe("An unexpected error occurred. Please try again.");
+    });
   });
 });
