@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma, pool } from "@/server/db";
 import { getDashboardData } from "@/server/dashboard";
 import { getConnectPageData } from "@/server/connect";
+import { createLocalDate, APP_TIMEZONE } from "@/server/timezone";
 import { ChannelStatus, ChannelType, MoveReason } from "@prisma/client";
 
 describe("Dashboard & Connect Server Layer (Real PostgreSQL)", () => {
@@ -185,6 +186,88 @@ describe("Dashboard & Connect Server Layer (Real PostgreSQL)", () => {
 
       // Header pill contains last push time
       expect(data.lastPushPill).toContain("Live · last push");
+    });
+
+    it("asserts no KPI sparkline contains fake or hardcoded values", async () => {
+      const data = await getDashboardData(accountId, "24h");
+
+      // Low-stock and Held-by-close-at sparklines must be undefined (removed rather than fake)
+      expect(data.kpis.lowStockSkus.sparkline).toBeUndefined();
+      expect(data.kpis.heldByCloseAt.sparkline).toBeUndefined();
+
+      // Available units and Orders today sparklines are computed from real DB data
+      expect(data.kpis.availableUnits.sparkline).toBeDefined();
+      expect(data.kpis.availableUnits.sparkline).toHaveLength(14);
+      expect(data.kpis.ordersToday.sparkline).toBeDefined();
+      expect(data.kpis.ordersToday.sparkline).toHaveLength(14);
+    });
+
+    it("aligns 24h chart hourly buckets to APP_TIMEZONE hours (3 PM bar covers 15:00-15:59 local)", async () => {
+      // Create a movement at 15:10 local time
+      const movementTime = createLocalDate(2026, 10, 27, 15, 10, APP_TIMEZONE);
+      await prisma.stockMovement.create({
+        data: {
+          productId: product1Id,
+          warehouseId: warehouse1Id,
+          delta: -7,
+          reason: MoveReason.ORDER,
+          refLabel: "Order #3PM-Test",
+          createdAt: movementTime,
+        },
+      });
+
+      // Call getDashboardData with now set to 15:45 local time on the same day
+      const now = createLocalDate(2026, 10, 27, 15, 45, APP_TIMEZONE);
+      const data = await getDashboardData(accountId, "24h", now);
+
+      // The last bar (idx = 23, isCurrent = true) corresponds to 15:00 local time
+      const currentBar = data.ordersChart.bars[23];
+      expect(currentBar.isCurrent).toBe(true);
+      expect(currentBar.label).toBe("3 PM");
+      // The 7 units ordered at 15:10 local must be counted in this 3 PM bar
+      expect(currentBar.units).toBe(7);
+
+      // Add another movement at 15:55 local time (covers same hour, 3 units)
+      await prisma.stockMovement.create({
+        data: {
+          productId: product1Id,
+          warehouseId: warehouse1Id,
+          delta: -3,
+          reason: MoveReason.ORDER,
+          refLabel: "Order #3PM-Test-2",
+          createdAt: createLocalDate(2026, 10, 27, 15, 55, APP_TIMEZONE),
+        },
+      });
+
+      const updatedData = await getDashboardData(accountId, "24h", now);
+      const updatedBar = updatedData.ordersChart.bars[23];
+      // Both movements (15:10 and 15:55) must be accumulated in the 3 PM bar (7 + 3 = 10 units)
+      expect(updatedBar.label).toBe("3 PM");
+      expect(updatedBar.units).toBe(10);
+
+      // Add a movement at 16:05 local (must NOT be in the 3 PM bar)
+      await prisma.stockMovement.create({
+        data: {
+          productId: product1Id,
+          warehouseId: warehouse1Id,
+          delta: -5,
+          reason: MoveReason.ORDER,
+          refLabel: "Order #4PM-Test",
+          createdAt: createLocalDate(2026, 10, 27, 16, 5, APP_TIMEZONE),
+        },
+      });
+
+      // Call at 16:15 local
+      const laterNow = createLocalDate(2026, 10, 27, 16, 15, APP_TIMEZONE);
+      const laterData = await getDashboardData(accountId, "24h", laterNow);
+
+      // At 16:15 local, bar 22 is 3 PM (10 units), bar 23 is 4 PM (5 units)
+      const bar3PM = laterData.ordersChart.bars[22];
+      const bar4PM = laterData.ordersChart.bars[23];
+      expect(bar3PM.label).toBe("3 PM");
+      expect(bar3PM.units).toBe(10);
+      expect(bar4PM.label).toBe("4 PM");
+      expect(bar4PM.units).toBe(5);
     });
 
     it("generates correct number of chart bars for 24h, 7d, and 30d ranges", async () => {

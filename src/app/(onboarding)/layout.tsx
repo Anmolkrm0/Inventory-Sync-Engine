@@ -11,7 +11,7 @@ export default function OnboardingLayout({
   return (
     <div className="min-h-screen bg-ground flex flex-col text-ink">
       {/* Dark top bar with 4-step stepper */}
-      <header className="w-full bg-[#0B0D12] border-b border-[#232838] px-4 sm:px-6 py-3.5 flex items-center justify-between z-40 sticky top-0">
+      <header className="w-full bg-sidebar-bg border-b border-sidebar-border px-4 sm:px-6 py-3.5 flex items-center justify-between z-40 sticky top-0">
         <div className="flex items-center gap-3 shrink-0">
           <Link
             href="/"
@@ -31,7 +31,7 @@ export default function OnboardingLayout({
 
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-[#9AA3B2] hover:text-white transition-colors shrink-0"
+          className="inline-flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-sidebar-dim hover:text-white transition-colors shrink-0"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Back to Dashboard</span>

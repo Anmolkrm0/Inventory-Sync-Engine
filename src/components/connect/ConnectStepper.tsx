@@ -39,7 +39,7 @@ export function ConnectStepper({ className }: { className?: string }) {
                 className={cn(
                   "flex items-center gap-2 px-2.5 py-1 rounded-[8px] text-xs font-medium transition-colors select-none",
                   isCurrent
-                    ? "bg-[#1B2030] text-white"
+                    ? "bg-sidebar-active text-white"
                     : isComplete
                     ? "text-good-text"
                     : "text-sidebar-dim"
@@ -52,7 +52,7 @@ export function ConnectStepper({ className }: { className?: string }) {
                       ? "bg-accent text-white"
                       : isComplete
                       ? "bg-good text-white"
-                      : "bg-[#1B2030] text-sidebar-dim border border-sidebar-border"
+                      : "bg-sidebar-active text-sidebar-dim border border-sidebar-border"
                   )}
                 >
                   {isComplete ? <Check className="h-3 w-3 stroke-[2.5]" /> : step.number}

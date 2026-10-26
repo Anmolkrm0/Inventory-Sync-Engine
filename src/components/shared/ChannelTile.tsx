@@ -16,37 +16,37 @@ const channelConfig: Record<
   SHOPIFY: {
     label: "Shopify",
     initial: "S",
-    bg: "bg-[#5E8E3E]",
+    bg: "bg-channel-shopify",
     text: "text-white",
   },
   AMAZON: {
     label: "Amazon",
     initial: "A",
-    bg: "bg-[#232F3E]",
+    bg: "bg-channel-amazon",
     text: "text-white",
   },
   ETSY: {
     label: "Etsy",
     initial: "E",
-    bg: "bg-[#F1641E]",
+    bg: "bg-channel-etsy",
     text: "text-white",
   },
   WOOCOMMERCE: {
     label: "WooCommerce",
     initial: "W",
-    bg: "bg-[#7F54B3]",
+    bg: "bg-channel-woocommerce",
     text: "text-white",
   },
   EBAY: {
     label: "eBay",
     initial: "e",
-    bg: "bg-[#0064D2]",
+    bg: "bg-channel-ebay",
     text: "text-white",
   },
   WALMART: {
     label: "Walmart",
     initial: "W",
-    bg: "bg-[#0071CE]",
+    bg: "bg-channel-walmart",
     text: "text-white",
   },
 };

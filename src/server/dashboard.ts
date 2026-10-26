@@ -1,6 +1,11 @@
 import { prisma } from "@/server/db";
 import { MoveReason, type ChannelStatus, type ChannelType } from "@prisma/client";
-import { getLocalMidnight, APP_TIMEZONE } from "@/server/timezone";
+import {
+  getLocalMidnight,
+  getLocalHourStart,
+  formatInAppTimezone,
+  APP_TIMEZONE,
+} from "@/server/timezone";
 import { availableHistory } from "@/server/history";
 import {
   available as computeAvailable,
@@ -18,7 +23,7 @@ export interface DashboardKpiItem {
     value: string;
     type: "good" | "warn" | "bad" | "accent";
   };
-  sparkline: number[];
+  sparkline?: number[];
   note: string;
 }
 
@@ -92,9 +97,9 @@ export interface DashboardData {
 
 export async function getDashboardData(
   accountId: string,
-  range: DashboardRange = "24h"
+  range: DashboardRange = "24h",
+  now: Date = new Date()
 ): Promise<DashboardData> {
-  const now = new Date();
   const todayMidnight = getLocalMidnight(now);
 
   // 1. Header Pill: Newest lastPushedAt across all listings for account
@@ -291,43 +296,41 @@ export async function getDashboardData(
   let chartTotalUnits = 0;
 
   if (range === "24h") {
-    // 24 hourly buckets ending at current hour
-    const currentHourTimestamp = new Date(now);
-    currentHourTimestamp.setMinutes(0, 0, 0);
+    // 24 hourly buckets ending at current hour in APP_TIMEZONE
+    const currentHourStart = getLocalHourStart(now, APP_TIMEZONE);
+    const start24h = new Date(currentHourStart.getTime() - 23 * 60 * 60 * 1000);
+    const end24h = new Date(currentHourStart.getTime() + 60 * 60 * 1000);
 
-    const start24h = new Date(currentHourTimestamp.getTime() - 23 * 60 * 60 * 1000);
     const movements24h = await prisma.stockMovement.findMany({
       where: {
         product: { accountId },
         reason: MoveReason.ORDER,
-        createdAt: { gte: start24h },
+        createdAt: { gte: start24h, lt: end24h },
       },
       select: { delta: true, createdAt: true },
     });
 
     const hourlyUnits = new Array<number>(24).fill(0);
     for (const m of movements24h) {
-      const diffHours = Math.floor(
-        (currentHourTimestamp.getTime() - m.createdAt.getTime()) / (60 * 60 * 1000)
+      const mHourStart = getLocalHourStart(m.createdAt, APP_TIMEZONE);
+      const diffHours = Math.round(
+        (mHourStart.getTime() - start24h.getTime()) / (60 * 60 * 1000)
       );
-      const bucketIdx = 23 - diffHours;
-      if (bucketIdx >= 0 && bucketIdx < 24) {
-        hourlyUnits[bucketIdx] += Math.abs(m.delta);
+      if (diffHours >= 0 && diffHours < 24) {
+        hourlyUnits[diffHours] += Math.abs(m.delta);
       }
     }
 
     chartBars = hourlyUnits.map((units, idx) => {
       const hourDate = new Date(start24h.getTime() + idx * 60 * 60 * 1000);
       const isCurrent = idx === 23;
-      const label = hourDate.toLocaleTimeString("en-US", {
-        timeZone: APP_TIMEZONE,
+      const label = formatInAppTimezone(hourDate, {
         hour: "numeric",
-      });
-      const fullLabel = `${hourDate.toLocaleDateString("en-US", {
-        timeZone: APP_TIMEZONE,
+      }, APP_TIMEZONE);
+      const fullLabel = `${formatInAppTimezone(hourDate, {
         month: "short",
         day: "numeric",
-      })} ${label}`;
+      }, APP_TIMEZONE)} ${label} (${units} units)`;
 
       chartTotalUnits += units;
       return { label, fullLabel, units, isCurrent };
@@ -443,13 +446,11 @@ export async function getDashboardData(
       lowStockSkus: {
         label: "Low-stock SKUs",
         value: lowStockCount,
-        sparkline: sparkline14.slice(-14).reverse(),
         note: `${stockoutWithin7DaysCount} will stock out within 7 days`,
       },
       heldByCloseAt: {
         label: "Held by close-at",
         value: heldByCloseAtCount,
-        sparkline: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, heldByCloseAtCount],
         note: "Stock reserved by safety thresholds",
       },
     },

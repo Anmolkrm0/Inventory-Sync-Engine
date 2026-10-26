@@ -17,7 +17,7 @@ export function MatchingPreviewCard({ preview }: MatchingPreviewCardProps) {
   } = preview;
 
   return (
-    <div className="rounded-[14px] bg-[#0B0D12] border border-[#232838] p-6 text-white space-y-6">
+    <div className="rounded-[14px] bg-sidebar-bg border border-sidebar-border p-6 text-white space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <span className="text-xs uppercase font-mono tracking-wider text-sidebar-dim">
@@ -27,7 +27,7 @@ export function MatchingPreviewCard({ preview }: MatchingPreviewCardProps) {
             Matching preview
           </h3>
         </div>
-        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#1B2030] text-sidebar-text border border-sidebar-border">
+        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-sidebar-active text-sidebar-text border border-sidebar-border">
           Live DB
         </span>
       </div>
@@ -44,7 +44,7 @@ export function MatchingPreviewCard({ preview }: MatchingPreviewCardProps) {
 
       {/* 2-Segment Bar (Matched vs Unlinked) */}
       <div className="space-y-2">
-        <div className="h-3 w-full rounded-full bg-[#1B2030] overflow-hidden flex" role="progressbar" aria-valuenow={matchedPercent} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-3 w-full rounded-full bg-sidebar-active overflow-hidden flex" role="progressbar" aria-valuenow={matchedPercent} aria-valuemin={0} aria-valuemax={100}>
           {totalListings > 0 ? (
             <>
               <div
@@ -83,14 +83,14 @@ export function MatchingPreviewCard({ preview }: MatchingPreviewCardProps) {
 
       {/* Notice about unlinked */}
       {unlinkedListings > 0 ? (
-        <div className="p-3 rounded-[10px] bg-[#151925] border border-sidebar-border flex items-start gap-2.5 text-xs text-sidebar-text">
+        <div className="p-3 rounded-[10px] bg-sidebar-raised border border-sidebar-border flex items-start gap-2.5 text-xs text-sidebar-text">
           <AlertCircle className="h-4 w-4 text-warn shrink-0 mt-0.5" />
           <p>
             <strong className="text-white">{unlinkedListings} listings</strong> have not been linked to a master SKU yet. Unlinked listings do not receive automatic stock sync.
           </p>
         </div>
       ) : (
-        <div className="p-3 rounded-[10px] bg-[#151925] border border-sidebar-border flex items-start gap-2.5 text-xs text-sidebar-text">
+        <div className="p-3 rounded-[10px] bg-sidebar-raised border border-sidebar-border flex items-start gap-2.5 text-xs text-sidebar-text">
           <CheckCircle2 className="h-4 w-4 text-good shrink-0 mt-0.5" />
           <p>
             All connected channel listings are fully mapped to master SKUs.
