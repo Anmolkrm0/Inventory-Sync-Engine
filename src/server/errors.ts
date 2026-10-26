@@ -70,10 +70,8 @@ export function toUserMessage(error: unknown): string {
       case "INVALID_DELTA":
       case "INVALID_SETTING":
         return error.message;
-      case "INSUFFICIENT_STOCK":
-        return `Not enough stock: only ${(error as InsufficientStockError).onHand ?? 0} on hand`;
       default:
-        return error.message;
+        return "An unexpected error occurred. Please try again.";
     }
   }
 

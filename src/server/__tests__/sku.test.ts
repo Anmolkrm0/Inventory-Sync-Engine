@@ -356,5 +356,12 @@ describe("SKU Detail Server Layer & Actions (Real PostgreSQL)", () => {
       const err = new Error("Database timeout on connection pool");
       expect(toUserMessage(err)).toBe("An unexpected error occurred. Please try again.");
     });
+
+    it("maps unknown StockError code to safe fallback message", () => {
+      const err = new (class extends Error {
+        code = "UNKNOWN_CUSTOM_CODE";
+      })("Internal error details with IDs");
+      expect(toUserMessage(err)).toBe("An unexpected error occurred. Please try again.");
+    });
   });
 });

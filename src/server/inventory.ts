@@ -6,7 +6,10 @@ import {
   statusForLevels,
   type StockStatus,
 } from "@/server/stock";
-import { bundleAvailable } from "@/server/bundles";
+import {
+  listBundlesWithAvailability,
+  bundleStatusFor,
+} from "@/server/bundles";
 import type { ChannelType } from "@prisma/client";
 
 export interface InventoryItemChannel {
@@ -164,14 +167,11 @@ export async function getInventoryData(
     })
   );
 
-  // 2. Pre-calculate bundle availability for bundle products
-  const bundleAvailMap = new Map<string, number>();
-  for (const product of allProducts) {
-    if (product.isBundle) {
-      const res = await bundleAvailable(accountId, product.id);
-      bundleAvailMap.set(product.id, res.available);
-    }
-  }
+  // 2. Pre-calculate bundle availability using listBundlesWithAvailability once
+  const bundlesList = await listBundlesWithAvailability(accountId);
+  const bundleMap = new Map<string, { available: number; status: StockStatus }>(
+    bundlesList.map((b) => [b.id, { available: b.available, status: b.status }])
+  );
 
   // 3. Filter products by warehouse if a warehouse filter is active
   // Fix 6: "With a warehouse filter, hide products not stocked in that warehouse."
@@ -219,19 +219,14 @@ export async function getInventoryData(
     let status: StockStatus = "Healthy";
 
     if (product.isBundle) {
-      available = bundleAvailMap.get(product.id) ?? 0;
+      const bundleData = bundleMap.get(product.id);
+      available = bundleData?.available ?? 0;
       onHand = 0;
       booked = 0;
       incoming = 0;
       closeAt = 0;
       closeAtDisplay = "0";
-      if (available <= 0) {
-        status = "Sold out";
-      } else if (available <= 5) {
-        status = "Low stock";
-      } else {
-        status = "Healthy";
-      }
+      status = bundleData ? bundleData.status : bundleStatusFor(available);
     } else {
       if (params.warehouseId) {
         const lvl = product.stockLevels.find(
