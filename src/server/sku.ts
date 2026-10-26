@@ -7,6 +7,7 @@ import {
   type StockStatus,
 } from "@/server/stock";
 import { MoveReason, type ChannelType } from "@prisma/client";
+import { availableHistory } from "@/server/history";
 
 export interface SkuWarehouseStock {
   warehouseId: string;
@@ -145,68 +146,35 @@ export async function getSkuDetail(
   const totalIncoming = stockedLevels.reduce((acc, lvl) => acc + lvl.incoming, 0);
   const aggregateStatus = statusForLevels(stockedLevels);
 
-  // 4. Fetch StockMovements for the last 30 days from STOCKED warehouses only
+  // 4. Compute days of stock left from ORDER movements over the last 30 days in stocked warehouses
   const stockedWarehouseIds = stockedLevels.map((lvl) => lvl.warehouseId);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const movements30Days = await prisma.stockMovement.findMany({
+  const orderMovements = await prisma.stockMovement.findMany({
     where: {
       productId: product.id,
       warehouseId: { in: stockedWarehouseIds },
+      reason: MoveReason.ORDER,
       createdAt: { gte: thirtyDaysAgo },
     },
-    orderBy: { createdAt: "asc" },
+    select: { delta: true },
   });
 
-  // Days of stock left: total available / average daily ORDER units over the last 30 days
-  const orderMovements = movements30Days.filter(
-    (m) => m.reason === MoveReason.ORDER
-  );
   const totalSoldUnits = orderMovements.reduce(
     (acc, m) => acc + Math.abs(m.delta),
     0
   );
   const avgDailyOrders = totalSoldUnits / 30;
-
   const daysOfStockLeft =
     avgDailyOrders > 0
       ? Math.round(totalAvailable / avgDailyOrders)
       : null;
 
-  // 5. Build 30-day Available Trend points by walking backwards from today's total available
-  // Group movements into 30 daily buckets (Day 0 = 29 days ago, Day 29 = today)
-  const now = new Date();
-  const dailyDeltas = new Array<number>(30).fill(0);
-
-  for (const m of movements30Days) {
-    const diffMs = now.getTime() - new Date(m.createdAt).getTime();
-    const daysAgo = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    const dayIndex = 29 - daysAgo;
-    if (dayIndex >= 0 && dayIndex < 30) {
-      dailyDeltas[dayIndex] += m.delta;
-    }
-  }
-
-  // Walk backwards: Day 29 has totalAvailable.
-  // Day i-1 had: Stock[i] - Delta[i]
-  const trendPoints: SkuDailyTrendPoint[] = new Array(30);
-  let rollingStock = totalAvailable;
-
-  for (let i = 29; i >= 0; i--) {
-    const dateAtDay = new Date(now.getTime() - (29 - i) * 24 * 60 * 60 * 1000);
-    const dateStr = dateAtDay.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-    const dayLabel = `${29 - i === 0 ? "Today" : `${29 - i}d ago`} (${dateStr})`;
-
-    trendPoints[i] = {
-      date: dateStr,
-      dayLabel,
-      available: Math.max(0, rollingStock),
-    };
-
-    rollingStock = rollingStock - dailyDeltas[i];
-  }
+  // 5. Build 30-day Available Trend points using shared availableHistory
+  const history = await availableHistory(accountId, {
+    productIds: [product.id],
+    days: 30,
+  });
+  const trendPoints = history.points;
 
   // 6. Linked Listings: primary first; flag changedOutsideApp if channelQty !== lastPushedQty
   const sortedListings: SkuListingItem[] = product.listings

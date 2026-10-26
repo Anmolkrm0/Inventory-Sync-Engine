@@ -1,70 +1,90 @@
 import React from "react";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { getCurrentAccountId } from "@/server/account";
+import { getDashboardData, type DashboardRange } from "@/server/dashboard";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { KpiTile } from "@/components/shared/KpiTile";
-import { Card } from "@/components/shared/Card";
-import { Button } from "@/components/ui/button";
-import { SlidersHorizontal } from "lucide-react";
+import { OrdersChartCard } from "@/components/dashboard/OrdersChartCard";
+import { ChannelsHealthCard } from "@/components/dashboard/ChannelsHealthCard";
+import { RunningLowCard } from "@/components/dashboard/RunningLowCard";
+import { LiveSyncFeedCard } from "@/components/dashboard/LiveSyncFeedCard";
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  searchParams: Promise<{
+    range?: string;
+  }>;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
+  const resolvedParams = await searchParams;
+  const range = (
+    ["24h", "7d", "30d"].includes(resolvedParams.range ?? "")
+      ? resolvedParams.range
+      : "24h"
+  ) as DashboardRange;
+
+  const accountId = await getCurrentAccountId();
+  const data = await getDashboardData(accountId, range);
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        eyebrow="Precision Control Room"
-        description="Real-time multi-channel stock sync and performance monitoring."
-        actions={
-          <Button variant="ink" size="sm" className="gap-2">
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Adjust stock
-          </Button>
-        }
+    <div className="space-y-6 max-w-[1240px] mx-auto pb-12">
+      {/* 1. Header with Live push pill, GET search form, and Adjust stock trigger */}
+      <DashboardHeader
+        lastPushPill={data.lastPushPill}
+        products={data.selectableProducts}
+        warehouses={data.warehouses}
       />
 
+      {/* 2. Four KPI tiles in a 4-column responsive grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile
-          label="Available units"
-          value="916"
-          change="+12 today"
-          changeType="good"
-          note="Across 3 warehouses"
-          sparkline={[20, 24, 22, 28, 30, 26, 32, 35, 34, 38, 42, 40, 45, 48]}
+          label={data.kpis.availableUnits.label}
+          value={data.kpis.availableUnits.value}
+          change={data.kpis.availableUnits.delta?.value}
+          changeType={data.kpis.availableUnits.delta?.type}
+          note={data.kpis.availableUnits.note}
+          sparkline={data.kpis.availableUnits.sparkline}
           sparklineColor="accent"
         />
         <KpiTile
-          label="Orders synced today"
-          value="38"
-          change="99.9% success"
-          changeType="good"
-          note="1.8s median push"
-          sparkline={[5, 8, 12, 10, 15, 14, 18, 22, 20, 25, 28, 32, 30, 38]}
+          label={data.kpis.ordersToday.label}
+          value={data.kpis.ordersToday.value}
+          note={data.kpis.ordersToday.note}
+          sparkline={data.kpis.ordersToday.sparkline}
           sparklineColor="good"
         />
         <KpiTile
-          label="Low-stock SKUs"
-          value="2"
-          change="Needs review"
-          changeType="warn"
-          note="Mug & Linen Tote"
-          sparkline={[1, 1, 2, 2, 1, 1, 2, 3, 2, 2, 3, 2, 2, 2]}
+          label={data.kpis.lowStockSkus.label}
+          value={data.kpis.lowStockSkus.value}
+          note={data.kpis.lowStockSkus.note}
+          sparkline={data.kpis.lowStockSkus.sparkline}
           sparklineColor="warn"
         />
         <KpiTile
-          label="Oversells prevented"
-          value="14"
-          change="Past 30 days"
-          changeType="neutral"
-          note="Held-at-0 close-at rules"
-          sparkline={[0, 1, 0, 2, 1, 0, 1, 2, 1, 1, 2, 1, 1, 1]}
-          sparklineColor="ink"
+          label={data.kpis.heldByCloseAt.label}
+          value={data.kpis.heldByCloseAt.value}
+          note={data.kpis.heldByCloseAt.note}
+          sparkline={data.kpis.heldByCloseAt.sparkline}
+          sparklineColor="accent"
         />
       </div>
 
-      <Card className="p-8">
-        <h2 className="text-lg font-bold font-heading text-ink">Sync Stream & Overview</h2>
-        <p className="mt-1 text-sm text-muted">
-          Dashboard 24h order chart, channels list, running low table, and live feed will be populated in Phase 8.
-        </p>
-      </Card>
+      {/* 3. Orders Chart (8 cols) + Channels Health List (4 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-8 flex flex-col">
+          <OrdersChartCard chart={data.ordersChart} />
+        </div>
+        <div className="lg:col-span-4 flex flex-col">
+          <ChannelsHealthCard channels={data.channels} />
+        </div>
+      </div>
+
+      {/* 4. Running Low Table (6 cols) + Live Sync Feed (6 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <RunningLowCard items={data.runningLow} />
+        <LiveSyncFeedCard items={data.liveFeed} />
+      </div>
     </div>
   );
 }

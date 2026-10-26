@@ -3,7 +3,14 @@ import { prisma } from "@/server/db";
 let cachedAccountId: string | null = null;
 
 export async function getCurrentAccountId(): Promise<string> {
-  if (cachedAccountId) return cachedAccountId;
+  if (cachedAccountId) {
+    const exists = await prisma.account.findUnique({
+      where: { id: cachedAccountId },
+      select: { id: true },
+    });
+    if (exists) return exists.id;
+    cachedAccountId = null;
+  }
 
   const account = await prisma.account.findFirst({
     select: { id: true },
@@ -32,8 +39,8 @@ export interface CurrentAccount {
 }
 
 export async function getCurrentAccount(): Promise<CurrentAccount> {
-  const accountId = await getCurrentAccountId();
-  const account = await prisma.account.findUniqueOrThrow({
+  let accountId = await getCurrentAccountId();
+  let account = await prisma.account.findUnique({
     where: { id: accountId },
     include: {
       users: {
@@ -41,6 +48,19 @@ export async function getCurrentAccount(): Promise<CurrentAccount> {
       },
     },
   });
+
+  if (!account) {
+    resetCachedAccountId();
+    accountId = await getCurrentAccountId();
+    account = await prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
+      include: {
+        users: {
+          take: 1,
+        },
+      },
+    });
+  }
 
   const currentUser = account.users[0] ?? {
     name: "Anmol K.",

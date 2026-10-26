@@ -252,3 +252,4 @@ enum MoveReason { ORDER CANCEL RETURN PO_RECEIVE MANUAL STOCKTAKE TRANSFER }
 4. Reconciliation job every 15 minutes
 5. WooCommerce connector, then Amazon / eBay / Etsy
 6. Any change to onHand, booked or closeAt must enqueue a channel push.
+7. TODO: Restore "Oversells prevented" KPI on Dashboard once real-time channel sync is operational (temporarily displayed as "Held by close-at").
